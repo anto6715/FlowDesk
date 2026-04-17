@@ -15,6 +15,7 @@ from flowdesk.schemas.tasks import (
 )
 from flowdesk.services.tasks import (
     InvalidTaskTransitionError,
+    LinkedEntityNotFoundError,
     TaskConflictError,
     TaskNotFoundError,
     create_task,
@@ -39,18 +40,20 @@ def create_new_task(
     payload: TaskCreate,
     session: Session = Depends(get_db_session),
 ) -> TaskRead:
-    with session.begin():
-        task = create_task(
-            session,
-            title=payload.title,
-            description=payload.description,
-            priority=payload.priority,
-            macro_activity_id=payload.macro_activity_id,
-            github_reference_id=payload.github_reference_id,
-        )
-
-    session.refresh(task)
-    return TaskRead.model_validate(task)
+    try:
+        with session.begin():
+            task = create_task(
+                session,
+                title=payload.title,
+                description=payload.description,
+                priority=payload.priority,
+                macro_activity_id=payload.macro_activity_id,
+                github_reference_id=payload.github_reference_id,
+            )
+        session.refresh(task)
+        return TaskRead.model_validate(task)
+    except LinkedEntityNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.get("/active", response_model=ActiveTaskResponse)
@@ -82,6 +85,8 @@ def start_task_route(
             work_session=WorkSessionRead.model_validate(work_session),
         )
     except TaskNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except LinkedEntityNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except TaskConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

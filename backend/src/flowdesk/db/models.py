@@ -4,7 +4,17 @@ from datetime import date, datetime, timezone
 from enum import StrEnum
 from uuid import uuid4
 
-from sqlalchemy import JSON, CheckConstraint, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from flowdesk.db.base import Base
@@ -154,6 +164,7 @@ class GitHubReference(Base):
 
     __table_args__ = (
         CheckConstraint("issue_number > 0", name="issue_number_positive"),
+        UniqueConstraint("repository_full_name", "issue_number", name="uq_github_references_repo_issue"),
     )
 
 

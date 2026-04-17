@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from flowdesk.db.models import (
+    MacroActivity,
     StateTransition,
     Task,
     TaskPriority,
@@ -15,11 +16,20 @@ from flowdesk.db.models import (
     WaitingReason,
     WorkSession,
     WorkSessionEndReason,
+    GitHubReference,
 )
 
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def ensure_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 class TaskServiceError(Exception):
@@ -36,6 +46,10 @@ class TaskConflictError(TaskServiceError):
 
 class InvalidTaskTransitionError(TaskServiceError):
     """Raised when a task transition is not allowed."""
+
+
+class LinkedEntityNotFoundError(TaskServiceError):
+    """Raised when a referenced macro-activity or GitHub issue record does not exist."""
 
 
 @dataclass(slots=True)
@@ -60,6 +74,12 @@ def create_task(
     macro_activity_id: str | None = None,
     github_reference_id: str | None = None,
 ) -> Task:
+    if macro_activity_id is not None and session.get(MacroActivity, macro_activity_id) is None:
+        raise LinkedEntityNotFoundError(f"Macro activity '{macro_activity_id}' was not found.")
+
+    if github_reference_id is not None and session.get(GitHubReference, github_reference_id) is None:
+        raise LinkedEntityNotFoundError(f"GitHub reference '{github_reference_id}' was not found.")
+
     task = Task(
         title=title,
         description=description,
@@ -112,10 +132,11 @@ def start_task(
     task.status = TaskStatus.IN_PROGRESS
     task.waiting_reason = None
     task.updated_at = utcnow()
+    start_time = ensure_utc(started_at) or utcnow()
 
     work_session = WorkSession(
         task_id=task.id,
-        started_at=started_at or utcnow(),
+        started_at=start_time,
     )
     session.add(work_session)
     session.flush()
@@ -144,8 +165,11 @@ def pause_task(
     if task is None or active_session is None or active_session.task_id != task_id:
         raise TaskConflictError("The requested task is not the active task.")
 
-    stop_time = ended_at or utcnow()
-    if stop_time < active_session.started_at:
+    stop_time = ensure_utc(ended_at) or utcnow()
+    started_time = ensure_utc(active_session.started_at)
+    if started_time is None:
+        raise TaskConflictError("The active work session is missing a start time.")
+    if stop_time < started_time:
         raise InvalidTaskTransitionError("A work session cannot end before it starts.")
 
     active_session.ended_at = stop_time

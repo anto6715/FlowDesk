@@ -18,7 +18,14 @@
 - Design approved through Level 5
 - Bootstrap completed
 - Persistence baseline committed in `ca3f053`
-- Current implementation slice: task timing services and first task API routes
+- Task timing services and routes committed in `4cffd4a`
+- Current backend now includes:
+  - verified dependency lockfile via `uv`
+  - Alembic migration baseline
+  - task timing routes
+  - macro-activity routes
+  - GitHub reference routes
+  - API tests against temporary SQLite databases
 
 ## Core invariants
 
@@ -54,10 +61,10 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. Implement task/work-session application services
-2. Expose first task timing API endpoints
-3. Add macro-activity and GitHub reference endpoints
-4. Build the first real `Today` UI against those endpoints
+1. Add experiment, journal, and scheduled-block services/endpoints
+2. Build the first real `Today` UI against the verified task APIs
+3. Add frontend API client and state management
+4. Extend reporting queries once the core flows are visible in the UI
 
 ## Commit guidance
 
