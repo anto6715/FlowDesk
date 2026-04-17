@@ -17,7 +17,8 @@
 
 - Design approved through Level 5
 - Bootstrap completed
-- Milestone 1 in progress: persistence baseline and initial schema
+- Persistence baseline committed in `ca3f053`
+- Current implementation slice: task timing services and first task API routes
 
 ## Core invariants
 
@@ -53,9 +54,9 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. Finish persistence baseline and initial migration
-2. Implement task/work-session application services
-3. Expose first task timing API endpoints
+1. Implement task/work-session application services
+2. Expose first task timing API endpoints
+3. Add macro-activity and GitHub reference endpoints
 4. Build the first real `Today` UI against those endpoints
 
 ## Commit guidance
@@ -63,4 +64,3 @@ When resuming a future session:
 - Small, regular commits are allowed
 - Do not rewrite history unless explicitly requested
 - Keep design docs and code changes in sync when decisions change
-
