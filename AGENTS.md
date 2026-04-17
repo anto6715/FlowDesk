@@ -19,6 +19,7 @@
 - Bootstrap completed
 - Persistence baseline committed in `ca3f053`
 - Task timing services and routes committed in `4cffd4a`
+- Reference APIs and backend integration tests committed in `0a2fed6`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
@@ -26,6 +27,11 @@
   - macro-activity routes
   - GitHub reference routes
   - API tests against temporary SQLite databases
+- Current frontend now includes:
+  - first real `Today` cockpit
+  - local API client for task flows
+  - Vite proxy to the backend `/api`
+  - verified production build with `npm run build`
 
 ## Core invariants
 
@@ -62,8 +68,8 @@ When resuming a future session:
 ## Near-term implementation order
 
 1. Add experiment, journal, and scheduled-block services/endpoints
-2. Build the first real `Today` UI against the verified task APIs
-3. Add frontend API client and state management
+2. Connect macro-activities and GitHub references into richer task creation UI
+3. Add frontend navigation beyond the `Today` cockpit
 4. Extend reporting queries once the core flows are visible in the UI
 
 ## Commit guidance
