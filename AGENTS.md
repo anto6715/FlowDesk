@@ -23,6 +23,7 @@
 - Experiment services and routes committed in `0ebe200`
 - Scheduled-block services and routes committed in `15f49ea`
 - Journal and note APIs committed in `dd1150f`
+- Today cockpit operational frontend integration committed in `af8a608`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
