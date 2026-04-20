@@ -31,9 +31,15 @@
 - Task detail workspace UI committed in `a005681`
 - Task and GitHub reference metadata update APIs committed in `6980037`
 - Core task UI feedback pass committed in `173df92`
+- Left navigation and distraction-free Home committed in `646cabd`
+- URL-first GitHub reference entry committed in `80db251`
+- Prominent task notes and task-scoped experiment creation committed in `70f88a0`
+- Task-linked daily journal entries committed in `8af9b9e`
+- Dedicated experiment registration UI committed in `ecb7523`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
+  - Alembic migration for task-linked daily journal entries
   - task timing routes
   - task work-session history read route
   - task metadata update route
@@ -41,18 +47,19 @@
   - GitHub reference routes, including cached metadata updates
   - experiment registry routes with state-transition history
   - scheduled-block planning routes with move/status history
-  - daily journal, task note, and experiment note routes
+  - daily journal, task-linked journal entry, task note, and experiment note routes
   - API tests against temporary SQLite databases
 - Current frontend now includes:
-  - first real `Today` cockpit
+  - distraction-free `Home` focused on active task and journal
   - local API client for task flows
   - local API client coverage for experiments, scheduled blocks, and journal entries
-  - Today panels for running/stalled experiments, planned blocks, and daily journal entries
-  - quick actions to register experiments, schedule blocks, and append journal entries
-  - task creation with inline macro-activity and GitHub reference selection/creation
-  - Tasks/Journal-first navigation with secondary access to Today, Experiments, and Calendar
+  - Home quick actions for task and experiment creation
+  - task and journal note creation with optional task links for daily journal entries
+  - task creation with inline macro-activity and URL-first GitHub reference selection/creation
+  - left-panel navigation for Home, Tasks, Journal, Experiments, and Calendar
   - dedicated `Experiments`, `Journal`, and `Calendar` views
-  - task detail workspace with metadata editing, references, sessions, linked experiments, planned blocks, and notes
+  - dedicated experiment registration form
+  - task detail workspace with prominent notes, experiment creation, metadata editing, references, sessions, linked experiments, and planned blocks
   - calendar day timeline with a non-overlapping schedule form
   - Vite proxy to the backend `/api`
   - verified production build with `npm run build`
@@ -91,15 +98,8 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. Active UX feedback slice:
-   - replace top secondary view selector with left navigation
-   - make Home distraction-free around active task and journal
-   - move task creation behind compact `+` actions
-   - simplify GitHub reference creation/editing around pasted issue/PR URLs with manual fallback
-   - make task detail notes prominent, with metadata secondary
-   - add task-scoped experiment creation from task detail and easier experiment creation from Home
-   - allow daily journal entries to be linked to a task
-2. After the UX feedback slice, run another user-test pass focused on navigation, note visibility, and form ergonomics
+1. User-test the updated Home, Tasks, Task detail, Journal, Experiments, and Calendar workflows
+2. Patch UI feedback from that pass, especially task-note prominence, left-nav sizing, and modal/drawer ergonomics
 3. Add report read models and reporting UI
 4. Add backup/export/import baseline
 5. Add experiment detail notes/artifacts UI

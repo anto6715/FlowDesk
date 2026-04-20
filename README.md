@@ -30,13 +30,14 @@ Implemented so far:
 - macro-activity and GitHub reference APIs, including GitHub reference metadata updates
 - experiment registry APIs with state-transition history
 - scheduled-block planning APIs with move/status history
-- daily journal, task note, and experiment note APIs
+- daily journal, task-linked journal entry, task note, and experiment note APIs
 - task work-session history read API
-- Today cockpit frontend with task timing, experiments, planned blocks, and journal entries
-- task creation with inline macro-activity and GitHub reference selection/creation
-- simplified Tasks/Journal-first navigation with secondary access to Today, Experiments, and Calendar
+- Home frontend focused on active task and journal
+- task creation with inline macro-activity and URL-first GitHub reference selection/creation
+- left-panel navigation for Home, Tasks, Journal, Experiments, and Calendar
 - dedicated Experiments, Journal, and Calendar views
-- task detail workspace with metadata editing, references, sessions, linked experiments, planned blocks, and notes
+- dedicated experiment registration form
+- task detail workspace with prominent notes, experiment creation, metadata editing, references, sessions, linked experiments, and planned blocks
 - calendar day timeline with a non-overlapping schedule form
 - backend API tests against temporary SQLite databases
 - verified frontend production build
@@ -96,8 +97,8 @@ npm run build
 
 Near-term implementation order:
 
-1. User-test the updated task creation, task detail metadata editing, and calendar workflows.
-2. Patch UI feedback from that test pass, especially spacing, navigation, and form ergonomics.
+1. User-test the updated Home, Tasks, Task detail, Journal, Experiments, and Calendar workflows.
+2. Patch UI feedback from that pass, especially task-note prominence, left-nav sizing, and modal/drawer ergonomics.
 3. Add report read models and reporting UI.
 4. Add backup/export/import baseline.
 5. Add experiment detail notes/artifacts UI.
