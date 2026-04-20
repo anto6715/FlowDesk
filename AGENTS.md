@@ -36,6 +36,7 @@
 - Prominent task notes and task-scoped experiment creation committed in `70f88a0`
 - Task-linked daily journal entries committed in `8af9b9e`
 - Dedicated experiment registration UI committed in `ecb7523`
+- SQLite Alembic version-stamp persistence fix committed in `1d74f04`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
