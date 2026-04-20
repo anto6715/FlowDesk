@@ -13,14 +13,26 @@ The product combines:
 
 ## Current status
 
-This repository contains the agreed design checkpoint and the initial project scaffold.
+This repository contains the agreed design checkpoint and the first working local app slices.
 
-The first implementation shape is:
+The current implementation shape is:
 
 - one Git repository
-- `backend/` for the Python application core and API
-- `frontend/` for the React UI
+- `backend/` for the Python application core and FastAPI API
+- `frontend/` for the React/Vite UI
 - `docs/` for design records and architecture decisions
+
+Implemented so far:
+
+- SQLite/Alembic persistence baseline
+- task creation, start, pause, switch, waiting, and completion flows
+- macro-activity and GitHub reference APIs
+- experiment registry APIs with state-transition history
+- scheduled-block planning APIs with move/status history
+- daily journal, task note, and experiment note APIs
+- Today cockpit frontend with task timing, experiments, planned blocks, and journal entries
+- backend API tests against temporary SQLite databases
+- verified frontend production build
 
 ## Repository layout
 
@@ -49,7 +61,7 @@ Backend:
 cd backend
 uv sync
 uv run alembic upgrade head
-uv run uvicorn flowdesk.main:app --reload
+uv run uvicorn flowdesk.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 Frontend:
@@ -59,6 +71,28 @@ cd frontend
 npm install
 npm run dev
 ```
+
+By default the frontend dev server proxies `/api` to `http://127.0.0.1:8000`.
+
+Useful verification commands:
+
+```bash
+cd backend
+uv run ruff check .
+uv run pytest
+
+cd ../frontend
+npm run build
+```
+
+## Next steps
+
+Near-term implementation order:
+
+1. Connect macro-activities and GitHub references into richer task creation UI.
+2. Add frontend navigation beyond the `Today` cockpit.
+3. Add dedicated experiment, journal, and calendar views.
+4. Extend reporting queries once the core flows are visible in the UI.
 
 ## Design references
 
