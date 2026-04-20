@@ -1,7 +1,6 @@
 import {
   startTransition,
   type FormEvent,
-  useDeferredValue,
   useEffect,
   useEffectEvent,
   useState
@@ -11,7 +10,6 @@ import {
   appendJournalEntry,
   createGitHubReference,
   createMacroActivity,
-  createScheduledBlock,
   createTask,
   getActiveTask,
   listExperiments,
@@ -162,34 +160,6 @@ function localDayBounds(dayKey: string) {
   };
 }
 
-function toDateTimeLocalValue(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-function getDefaultScheduleWindow() {
-  const startsAt = new Date();
-  startsAt.setMinutes(startsAt.getMinutes() < 30 ? 30 : 60, 0, 0);
-  const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
-
-  return {
-    startsAt: toDateTimeLocalValue(startsAt),
-    endsAt: toDateTimeLocalValue(endsAt)
-  };
-}
-
-interface ScheduleFormState {
-  taskId: string;
-  titleOverride: string;
-  startsAt: string;
-  endsAt: string;
-}
-
 interface MacroActivityFormState {
   name: string;
   description: string;
@@ -206,7 +176,7 @@ interface GitHubReferenceFormState {
 
 type CreateMacroActivityMode = "none" | "existing" | "new";
 type CreateGitHubReferenceMode = "none" | "existing" | "new";
-type HomeQuickAction = "task" | "experiment" | null;
+type HomeQuickAction = "task" | "note" | "experiment" | null;
 
 export function HomePage() {
   const [dashboard, setDashboard] = useState<DashboardState>(initialState);
@@ -214,13 +184,10 @@ export function HomePage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isRegisteringExperiment, setIsRegisteringExperiment] = useState(false);
-  const [isSchedulingBlock, setIsSchedulingBlock] = useState(false);
   const [isAppendingJournal, setIsAppendingJournal] = useState(false);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [quickAction, setQuickAction] = useState<HomeQuickAction>(null);
-  const [isJournalComposerOpen, setIsJournalComposerOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const [createTitle, setCreateTitle] = useState("");
   const [createDescription, setCreateDescription] = useState("");
   const [createPriority, setCreatePriority] = useState<TaskPriority>("normal");
@@ -249,16 +216,6 @@ export function HomePage() {
   const [experimentStatus, setExperimentStatus] = useState<ExperimentStatus>("running");
   const [journalEntry, setJournalEntry] = useState("");
   const [journalTaskId, setJournalTaskId] = useState("");
-  const [scheduleForm, setScheduleForm] = useState<ScheduleFormState>(() => {
-    const defaultWindow = getDefaultScheduleWindow();
-    return {
-      taskId: "",
-      titleOverride: "",
-      startsAt: defaultWindow.startsAt,
-      endsAt: defaultWindow.endsAt
-    };
-  });
-  const deferredQuery = useDeferredValue(query);
 
   async function loadDashboard(options?: { background?: boolean }) {
     if (options?.background) {
@@ -279,21 +236,20 @@ export function HomePage() {
         stalledExperiments,
         scheduledBlocks,
         journalEntries
-      ] =
-        await Promise.all([
-          listTasks(),
-          listMacroActivities(),
-          listGitHubReferences(),
-          getActiveTask(),
-          listExperiments({ status: "running" }),
-          listExperiments({ status: "stalled" }),
-          listScheduledBlocks({
-            status: "planned",
-            ends_after: dayBounds.startsAt,
-            starts_before: dayBounds.endsAt
-          }),
-          listJournalEntries(journalDay)
-        ]);
+      ] = await Promise.all([
+        listTasks(),
+        listMacroActivities(),
+        listGitHubReferences(),
+        getActiveTask(),
+        listExperiments({ status: "running" }),
+        listExperiments({ status: "stalled" }),
+        listScheduledBlocks({
+          status: "planned",
+          ends_after: dayBounds.startsAt,
+          starts_before: dayBounds.endsAt
+        }),
+        listJournalEntries(journalDay)
+      ]);
       startTransition(() => {
         setDashboard({
           tasks,
@@ -330,18 +286,6 @@ export function HomePage() {
 
     return () => window.clearInterval(intervalId);
   }, []);
-
-  const filteredTasks = (() => {
-    const search = deferredQuery.trim().toLowerCase();
-    if (search.length === 0) {
-      return dashboard.tasks;
-    }
-
-    return dashboard.tasks.filter((task) => {
-      const description = task.description ?? "";
-      return `${task.title} ${description}`.toLowerCase().includes(search);
-    });
-  })();
 
   async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -389,8 +333,7 @@ export function HomePage() {
         const repositoryFullName =
           parsedReference?.repositoryFullName ?? githubReferenceForm.repositoryFullName.trim();
         const issueNumber =
-          parsedReference?.issueNumber ??
-          Number.parseInt(githubReferenceForm.issueNumber, 10);
+          parsedReference?.issueNumber ?? Number.parseInt(githubReferenceForm.issueNumber, 10);
         const issueUrl =
           parsedReference?.issueUrl ||
           githubReferenceForm.issueUrl.trim() ||
@@ -520,6 +463,16 @@ export function HomePage() {
     );
   }
 
+  function openQuickAction(action: Exclude<HomeQuickAction, null>) {
+    if (action === "note" && journalTaskId.length === 0 && dashboard.activeTask) {
+      setJournalTaskId(dashboard.activeTask.id);
+    }
+    if (action === "experiment" && experimentTaskId.length === 0) {
+      setExperimentTaskId(resolveTaskSelection(""));
+    }
+    setQuickAction(action);
+  }
+
   async function handleRegisterExperiment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const taskId = resolveTaskSelection(experimentTaskId);
@@ -556,43 +509,6 @@ export function HomePage() {
     }
   }
 
-  async function handleCreateScheduledBlock(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const taskId = resolveTaskSelection(scheduleForm.taskId);
-    if (taskId.length === 0) {
-      setError("Pick a task before scheduling a block.");
-      return;
-    }
-    if (scheduleForm.startsAt.length === 0 || scheduleForm.endsAt.length === 0) {
-      setError("Scheduled blocks require start and end times.");
-      return;
-    }
-
-    setIsSchedulingBlock(true);
-    try {
-      await createScheduledBlock({
-        task_id: taskId,
-        title_override: scheduleForm.titleOverride.trim() || undefined,
-        starts_at: new Date(scheduleForm.startsAt).toISOString(),
-        ends_at: new Date(scheduleForm.endsAt).toISOString()
-      });
-      const defaultWindow = getDefaultScheduleWindow();
-      setScheduleForm({
-        taskId: taskId,
-        titleOverride: "",
-        startsAt: defaultWindow.startsAt,
-        endsAt: defaultWindow.endsAt
-      });
-      await loadDashboard({ background: true });
-    } catch (scheduleError) {
-      setError(
-        scheduleError instanceof Error ? scheduleError.message : "Failed to schedule block."
-      );
-    } finally {
-      setIsSchedulingBlock(false);
-    }
-  }
-
   async function handleAppendJournalEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (journalEntry.trim().length === 0) {
@@ -602,10 +518,9 @@ export function HomePage() {
 
     setIsAppendingJournal(true);
     try {
-      const taskId = journalTaskId || dashboard.activeTask?.id || null;
-      await appendJournalEntry(dashboard.journalDay, journalEntry.trim(), taskId);
+      await appendJournalEntry(dashboard.journalDay, journalEntry.trim(), journalTaskId || null);
       setJournalEntry("");
-      setIsJournalComposerOpen(false);
+      setQuickAction(null);
       await loadDashboard({ background: true });
     } catch (journalError) {
       setError(journalError instanceof Error ? journalError.message : "Failed to append entry.");
@@ -630,9 +545,18 @@ export function HomePage() {
     (reference) =>
       !usedGithubReferenceIds.has(reference.id) || reference.id === createGitHubReferenceId
   );
-  const defaultExperimentTaskId = resolveTaskSelection(experimentTaskId);
-  const defaultScheduleTaskId = resolveTaskSelection(scheduleForm.taskId);
-  const defaultJournalTaskId = journalTaskId || dashboard.activeTask?.id || "";
+  const readyTasks = openTasks.filter((task) => task.id !== activeTaskId).slice(0, 4);
+  const latestJournalEntries = [...dashboard.journalEntries]
+    .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+    .slice(0, 3);
+  const nextScheduledBlocks = [...dashboard.scheduledBlocks]
+    .sort((left, right) => new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime())
+    .slice(0, 2);
+  const attentionExperiments = [
+    ...dashboard.stalledExperiments,
+    ...dashboard.runningExperiments
+  ].slice(0, 3);
+  const defaultExperimentTaskId = experimentTaskId || resolveTaskSelection("");
 
   return (
     <main className="page-shell page-shell--home">
@@ -642,38 +566,54 @@ export function HomePage() {
           <h1>Today</h1>
         </div>
         <div className="home-toolbar">
-          <button
-            className="button button--accent button--round"
-            onClick={() => setQuickAction(quickAction === "task" ? null : "task")}
-            type="button"
-          >
-            + Task
-          </button>
-          <button
-            className="button button--ghost button--round"
-            onClick={() => setQuickAction(quickAction === "experiment" ? null : "experiment")}
-            type="button"
-          >
-            + Experiment
-          </button>
-          <div className="sync-chip">
+          <div className="home-action-group" aria-label="Quick actions">
+            <button
+              className="button button--accent button--mini"
+              onClick={() => openQuickAction("task")}
+              type="button"
+            >
+              + Task
+            </button>
+            <button
+              className="button button--ghost button--mini"
+              onClick={() => openQuickAction("note")}
+              type="button"
+            >
+              + Note
+            </button>
+            <button
+              className="button button--ghost button--mini"
+              onClick={() => openQuickAction("experiment")}
+              type="button"
+            >
+              + Experiment
+            </button>
+          </div>
+          <div className="sync-chip sync-chip--quiet">
             <span>{isRefreshing ? "Refreshing..." : "Live local state"}</span>
-            <strong>{dashboard.syncedAt ? formatDateTime(dashboard.syncedAt.toISOString()) : "Sync pending"}</strong>
+            <strong>
+              {dashboard.syncedAt ? formatDateTime(dashboard.syncedAt.toISOString()) : "Sync pending"}
+            </strong>
           </div>
         </div>
       </section>
 
-      <section className="summary-grid" aria-label="Current task summary">
-        <article className="summary-card summary-card--spotlight">
+      {error ? <div className="banner banner--error">{error}</div> : null}
+      {isLoading ? <div className="banner">Loading Flow Desk...</div> : null}
+
+      <section className="home-dashboard-grid" aria-label="Today workspace">
+        <article className="summary-card summary-card--spotlight home-active-card">
           <p className="section-kicker">Active task</p>
           {dashboard.activeTask ? (
             <>
               <h2>{dashboard.activeTask.title}</h2>
               <p className="summary-copy">
-                {dashboard.activeTask.description || "No description yet. Use notes and links later to expand the execution context."}
+                {dashboard.activeTask.description || "No description yet."}
               </p>
               <div className="pill-row">
-                <span className={`pill pill--${dashboard.activeTask.status}`}>{statusLabel(dashboard.activeTask.status)}</span>
+                <span className={`pill pill--${dashboard.activeTask.status}`}>
+                  {statusLabel(dashboard.activeTask.status)}
+                </span>
                 <span className={`pill pill--priority-${dashboard.activeTask.priority}`}>
                   {dashboard.activeTask.priority}
                 </span>
@@ -713,7 +653,7 @@ export function HomePage() {
                   <strong>{waitingLabel(dashboard.activeTask.waiting_reason)}</strong>
                 </div>
               </div>
-              <div className="action-row">
+              <div className="action-row home-active-actions">
                 <button
                   className="button button--ghost"
                   disabled={busyTaskId === dashboard.activeTask.id}
@@ -731,497 +671,63 @@ export function HomePage() {
                   Complete
                 </button>
               </div>
-              <div className="waiting-bar">
-                <label>
-                  <span>Move to waiting</span>
-                  <select
-                    onChange={(event) => setWaitingReason(event.target.value as WaitingReason)}
-                    value={waitingReason}
+              <details className="home-waiting-details">
+                <summary>Move to waiting</summary>
+                <div className="waiting-bar waiting-bar--compact">
+                  <label>
+                    <span>Reason</span>
+                    <select
+                      onChange={(event) => setWaitingReason(event.target.value as WaitingReason)}
+                      value={waitingReason}
+                    >
+                      {waitingOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className="button button--warning"
+                    disabled={busyTaskId === dashboard.activeTask.id}
+                    onClick={() => void handlePauseActiveTask("waiting")}
+                    type="button"
                   >
-                    {waitingOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  className="button button--warning"
-                  disabled={busyTaskId === dashboard.activeTask.id}
-                  onClick={() => void handlePauseActiveTask("waiting")}
-                  type="button"
-                >
-                  Wait
-                </button>
-              </div>
+                    Wait
+                  </button>
+                </div>
+              </details>
             </>
           ) : (
             <>
               <h2>No task is active</h2>
               <p className="summary-copy">
-                Pick a task from the deck below or create a new one. The one-active-task rule is enforced by the backend.
+                Start one of the ready tasks or create a new task when the next action is clear.
               </p>
-              <div className="empty-ribbon">Open tasks ready to start: {openTasks.length}</div>
+              {readyTasks.length > 0 ? (
+                <ul className="entity-list home-ready-list">
+                  {readyTasks.map((task) => (
+                    <li className="entity-row" key={task.id}>
+                      <div>
+                        <strong>{task.title}</strong>
+                        <span>{statusLabel(task.status)}</span>
+                      </div>
+                      <button
+                        className="button button--accent button--small"
+                        disabled={busyTaskId === task.id}
+                        onClick={() => void handleStartTask(task.id)}
+                        type="button"
+                      >
+                        {busyTaskId === task.id ? "Starting..." : "Start"}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="empty-ribbon">No ready tasks yet</div>
+              )}
             </>
           )}
-        </article>
-
-        <article className="summary-card home-secondary-card">
-          <p className="section-kicker">Operational pulse</p>
-          <ul className="metric-list">
-            <li>
-              <span>Open</span>
-              <strong>{openTasks.length}</strong>
-            </li>
-            <li>
-              <span>Waiting</span>
-              <strong>{countByStatus(dashboard.tasks, "waiting")}</strong>
-            </li>
-            <li>
-              <span>Blocked</span>
-              <strong>{countByStatus(dashboard.tasks, "blocked")}</strong>
-            </li>
-            <li>
-              <span>Done</span>
-              <strong>{countByStatus(dashboard.tasks, "done")}</strong>
-            </li>
-          </ul>
-        </article>
-
-        <article className={quickAction === "task" ? "summary-card home-create-card" : "summary-card home-create-card home-create-card--hidden"}>
-          <p className="section-kicker">Create task</p>
-          <form className="create-form" onSubmit={(event) => void handleCreateTask(event)}>
-            <label>
-              <span>Title</span>
-              <input
-                onChange={(event) => setCreateTitle(event.target.value)}
-                placeholder="Investigate stalled coupled run"
-                value={createTitle}
-              />
-            </label>
-            <label>
-              <span>Description</span>
-              <textarea
-                onChange={(event) => setCreateDescription(event.target.value)}
-                placeholder="Capture what you need to do next, not the whole project context."
-                rows={4}
-                value={createDescription}
-              />
-            </label>
-            <label>
-              <span>Priority</span>
-              <select
-                onChange={(event) => setCreatePriority(event.target.value as TaskPriority)}
-                value={createPriority}
-              >
-                {priorityOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Macro-activity</span>
-              <select
-                onChange={(event) =>
-                  setCreateMacroActivityMode(event.target.value as CreateMacroActivityMode)
-                }
-                value={createMacroActivityMode}
-              >
-                <option value="none">No macro-activity</option>
-                <option value="existing">Use existing</option>
-                <option value="new">Create new</option>
-              </select>
-            </label>
-            {createMacroActivityMode === "existing" ? (
-              <label>
-                <span>Existing macro-activity</span>
-                <select
-                  onChange={(event) => setCreateMacroActivityId(event.target.value)}
-                  value={createMacroActivityId}
-                >
-                  <option value="">Pick macro-activity</option>
-                  {dashboard.macroActivities.map((macroActivity) => (
-                    <option key={macroActivity.id} value={macroActivity.id}>
-                      {macroActivity.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            {createMacroActivityMode === "new" ? (
-              <div className="embedded-form-grid">
-                <label>
-                  <span>New macro name</span>
-                  <input
-                    onChange={(event) =>
-                      setMacroActivityForm((current) => ({
-                        ...current,
-                        name: event.target.value
-                      }))
-                    }
-                    placeholder="Coupled model runs"
-                    value={macroActivityForm.name}
-                  />
-                </label>
-                <label>
-                  <span>Description</span>
-                  <input
-                    onChange={(event) =>
-                      setMacroActivityForm((current) => ({
-                        ...current,
-                        description: event.target.value
-                      }))
-                    }
-                    placeholder="Optional scope note"
-                    value={macroActivityForm.description}
-                  />
-                </label>
-                <label>
-                  <span>Color</span>
-                  <input
-                    onChange={(event) =>
-                      setMacroActivityForm((current) => ({
-                        ...current,
-                        colorHex: event.target.value
-                      }))
-                    }
-                    type="color"
-                    value={macroActivityForm.colorHex}
-                  />
-                </label>
-              </div>
-            ) : null}
-            <label>
-              <span>GitHub reference</span>
-              <select
-                onChange={(event) =>
-                  setCreateGitHubReferenceMode(event.target.value as CreateGitHubReferenceMode)
-                }
-                value={createGitHubReferenceMode}
-              >
-                <option value="none">No GitHub reference</option>
-                <option value="existing">Use existing</option>
-                <option value="new">Create new</option>
-              </select>
-            </label>
-            {createGitHubReferenceMode === "existing" ? (
-              <label>
-                <span>Existing GitHub reference</span>
-                <select
-                  onChange={(event) => setCreateGitHubReferenceId(event.target.value)}
-                  value={createGitHubReferenceId}
-                >
-                  <option value="">Pick GitHub reference</option>
-                  {availableGithubReferences.map((reference) => (
-                    <option key={reference.id} value={reference.id}>
-                      {formatGitHubReference(reference)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            {createGitHubReferenceMode === "new" ? (
-              <div className="embedded-form-grid">
-                <div className="segmented-control">
-                  <button
-                    className={
-                      githubReferenceForm.entryMode === "url"
-                        ? "segmented-control__item segmented-control__item--active"
-                        : "segmented-control__item"
-                    }
-                    onClick={() =>
-                      setGitHubReferenceForm((current) => ({ ...current, entryMode: "url" }))
-                    }
-                    type="button"
-                  >
-                    Paste URL
-                  </button>
-                  <button
-                    className={
-                      githubReferenceForm.entryMode === "manual"
-                        ? "segmented-control__item segmented-control__item--active"
-                        : "segmented-control__item"
-                    }
-                    onClick={() =>
-                      setGitHubReferenceForm((current) => ({ ...current, entryMode: "manual" }))
-                    }
-                    type="button"
-                  >
-                    Manual
-                  </button>
-                </div>
-                {githubReferenceForm.entryMode === "url" ? (
-                  <label>
-                    <span>GitHub issue or PR URL</span>
-                    <input
-                      onChange={(event) =>
-                        setGitHubReferenceForm((current) => ({
-                          ...current,
-                          issueUrl: event.target.value
-                        }))
-                      }
-                      placeholder="https://github.com/org/project/issues/42"
-                      value={githubReferenceForm.issueUrl}
-                    />
-                  </label>
-                ) : (
-                  <>
-                    <label>
-                      <span>Repository</span>
-                      <input
-                        onChange={(event) =>
-                          setGitHubReferenceForm((current) => ({
-                            ...current,
-                            repositoryFullName: event.target.value
-                          }))
-                        }
-                        placeholder="org/project"
-                        value={githubReferenceForm.repositoryFullName}
-                      />
-                    </label>
-                    <label>
-                      <span>Issue or PR number</span>
-                      <input
-                        min="1"
-                        onChange={(event) =>
-                          setGitHubReferenceForm((current) => ({
-                            ...current,
-                            issueNumber: event.target.value
-                          }))
-                        }
-                        placeholder="42"
-                        type="number"
-                        value={githubReferenceForm.issueNumber}
-                      />
-                    </label>
-                  </>
-                )}
-                <label>
-                  <span>Title</span>
-                  <input
-                    onChange={(event) =>
-                      setGitHubReferenceForm((current) => ({
-                        ...current,
-                        cachedTitle: event.target.value
-                      }))
-                    }
-                    placeholder="Optional"
-                    value={githubReferenceForm.cachedTitle}
-                  />
-                </label>
-              </div>
-            ) : null}
-            <button className="button button--accent" disabled={isCreating} type="submit">
-              {isCreating ? "Creating..." : "Create task"}
-            </button>
-          </form>
-        </article>
-      </section>
-
-      {error ? <div className="banner banner--error">{error}</div> : null}
-
-      <section className="operations-grid home-operations-grid" aria-label="Today operations">
-        <article className={quickAction === "experiment" ? "panel panel--stack home-experiment-panel" : "panel panel--stack home-experiment-panel home-experiment-panel--hidden"}>
-          <div className="panel-header panel-header--compact">
-            <div>
-              <p className="section-kicker">Experiments</p>
-              <h2>Runs needing attention</h2>
-            </div>
-            <span className="count-chip">
-              {dashboard.runningExperiments.length + dashboard.stalledExperiments.length}
-            </span>
-          </div>
-
-          <div className="split-list">
-            <div>
-              <h3>Running</h3>
-              {dashboard.runningExperiments.length > 0 ? (
-                <ul className="entity-list">
-                  {dashboard.runningExperiments.map((experiment) => (
-                    <li className="entity-row" key={experiment.id}>
-                      <div>
-                        <strong>{experiment.title}</strong>
-                        <span>{taskLookup.get(experiment.task_id)?.title ?? "Unknown task"}</span>
-                      </div>
-                      <span className={`pill pill--${experiment.status}`}>
-                        {experiment.status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="empty-state">No running experiments.</p>
-              )}
-            </div>
-
-            <div>
-              <h3>Stalled</h3>
-              {dashboard.stalledExperiments.length > 0 ? (
-                <ul className="entity-list">
-                  {dashboard.stalledExperiments.map((experiment) => (
-                    <li className="entity-row entity-row--alert" key={experiment.id}>
-                      <div>
-                        <strong>{experiment.title}</strong>
-                        <span>{taskLookup.get(experiment.task_id)?.title ?? "Unknown task"}</span>
-                      </div>
-                      <span className={`pill pill--${experiment.status}`}>
-                        {experiment.status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="empty-state">No stalled experiments.</p>
-              )}
-            </div>
-          </div>
-
-          <form className="compact-form" onSubmit={(event) => void handleRegisterExperiment(event)}>
-            <label>
-              <span>Task</span>
-              <select
-                disabled={openTasks.length === 0}
-                onChange={(event) => setExperimentTaskId(event.target.value)}
-                value={defaultExperimentTaskId}
-              >
-                {openTasks.length === 0 ? <option value="">No open tasks</option> : null}
-                {openTasks.map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Title</span>
-              <input
-                onChange={(event) => setExperimentTitle(event.target.value)}
-                placeholder="Scaling run 256 ranks"
-                value={experimentTitle}
-              />
-            </label>
-            <label>
-              <span>Instruction</span>
-              <textarea
-                onChange={(event) => setExperimentInstruction(event.target.value)}
-                placeholder="What this run should prove or disprove."
-                rows={3}
-                value={experimentInstruction}
-              />
-            </label>
-            <label>
-              <span>Status</span>
-              <select
-                onChange={(event) => setExperimentStatus(event.target.value as ExperimentStatus)}
-                value={experimentStatus}
-              >
-                {experimentStatusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              className="button button--accent"
-              disabled={isRegisteringExperiment || defaultExperimentTaskId.length === 0}
-              type="submit"
-            >
-              {isRegisteringExperiment ? "Registering..." : "Register experiment"}
-            </button>
-          </form>
-        </article>
-
-        <article className="panel panel--stack home-hidden-panel">
-          <div className="panel-header panel-header--compact">
-            <div>
-              <p className="section-kicker">Planned today</p>
-              <h2>Scheduled blocks</h2>
-            </div>
-            <span className="count-chip">{dashboard.scheduledBlocks.length}</span>
-          </div>
-
-          {dashboard.scheduledBlocks.length > 0 ? (
-            <ul className="entity-list entity-list--timeline">
-              {dashboard.scheduledBlocks.map((block) => (
-                <li className="entity-row" key={block.id}>
-                  <div>
-                    <strong>
-                      {block.title_override ?? taskLookup.get(block.task_id)?.title ?? "Untitled block"}
-                    </strong>
-                    <span>{taskLookup.get(block.task_id)?.title ?? "Unknown task"}</span>
-                  </div>
-                  <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="empty-state">No planned blocks for today.</p>
-          )}
-
-          <form className="compact-form" onSubmit={(event) => void handleCreateScheduledBlock(event)}>
-            <label>
-              <span>Task</span>
-              <select
-                disabled={openTasks.length === 0}
-                onChange={(event) =>
-                  setScheduleForm((current) => ({ ...current, taskId: event.target.value }))
-                }
-                value={defaultScheduleTaskId}
-              >
-                {openTasks.length === 0 ? <option value="">No open tasks</option> : null}
-                {openTasks.map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Title override</span>
-              <input
-                onChange={(event) =>
-                  setScheduleForm((current) => ({
-                    ...current,
-                    titleOverride: event.target.value
-                  }))
-                }
-                placeholder="Optional calendar label"
-                value={scheduleForm.titleOverride}
-              />
-            </label>
-            <div className="schedule-time-grid">
-              <label>
-                <span>Start</span>
-                <input
-                  onChange={(event) =>
-                    setScheduleForm((current) => ({ ...current, startsAt: event.target.value }))
-                  }
-                  type="datetime-local"
-                  value={scheduleForm.startsAt}
-                />
-              </label>
-              <label>
-                <span>End</span>
-                <input
-                  onChange={(event) =>
-                    setScheduleForm((current) => ({ ...current, endsAt: event.target.value }))
-                  }
-                  type="datetime-local"
-                  value={scheduleForm.endsAt}
-                />
-              </label>
-            </div>
-            <button
-              className="button button--ghost"
-              disabled={isSchedulingBlock || defaultScheduleTaskId.length === 0}
-              type="submit"
-            >
-              {isSchedulingBlock ? "Scheduling..." : "Schedule block"}
-            </button>
-          </form>
         </article>
 
         <article className="panel panel--stack home-journal-panel">
@@ -1230,21 +736,18 @@ export function HomePage() {
               <p className="section-kicker">Journal</p>
               <h2>{dashboard.journalDay}</h2>
             </div>
-            <div className="journal-actions">
-              <span className="count-chip">{dashboard.journalEntries.length}</span>
-              <button
-                className="button button--ghost button--round"
-                onClick={() => setIsJournalComposerOpen((current) => !current)}
-                type="button"
-              >
-                + Note
-              </button>
-            </div>
+            <button
+              className="button button--ghost button--mini"
+              onClick={() => openQuickAction("note")}
+              type="button"
+            >
+              + Note
+            </button>
           </div>
 
-          {dashboard.journalEntries.length > 0 ? (
+          {latestJournalEntries.length > 0 ? (
             <ol className="journal-list">
-              {dashboard.journalEntries.map((entry) => (
+              {latestJournalEntries.map((entry) => (
                 <li key={entry.id}>
                   <time>{formatDateTime(entry.created_at)}</time>
                   {entry.task_id ? (
@@ -1259,140 +762,519 @@ export function HomePage() {
           ) : (
             <p className="empty-state">No journal entries yet today.</p>
           )}
+        </article>
 
-          <form
-            className={isJournalComposerOpen ? "compact-form" : "compact-form home-note-form--hidden"}
-            onSubmit={(event) => void handleAppendJournalEntry(event)}
-          >
-            <label>
-              <span>Linked task</span>
-              <select
-                onChange={(event) => setJournalTaskId(event.target.value)}
-                value={defaultJournalTaskId}
-              >
-                <option value="">No linked task</option>
-                {openTasks.map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Quick note</span>
-              <textarea
-                onChange={(event) => setJournalEntry(event.target.value)}
-                placeholder="Capture the observation while it is fresh."
-                rows={5}
-                value={journalEntry}
-              />
-            </label>
-            <button className="button button--accent" disabled={isAppendingJournal} type="submit">
-              {isAppendingJournal ? "Appending..." : "Append entry"}
-            </button>
-          </form>
+        <article className="panel panel--stack home-next-panel">
+          <div className="panel-header panel-header--compact">
+            <div>
+              <p className="section-kicker">Next up</p>
+              <h2>Context</h2>
+            </div>
+            <span className="count-chip">{openTasks.length}</span>
+          </div>
+
+          <div className="home-context-stack">
+            <section>
+              <div className="home-mini-header">
+                <h3>Planned today</h3>
+                <span>{dashboard.scheduledBlocks.length}</span>
+              </div>
+              {nextScheduledBlocks.length > 0 ? (
+                <ul className="entity-list entity-list--timeline">
+                  {nextScheduledBlocks.map((block) => (
+                    <li className="entity-row" key={block.id}>
+                      <div>
+                        <strong>
+                          {block.title_override ??
+                            taskLookup.get(block.task_id)?.title ??
+                            "Untitled block"}
+                        </strong>
+                        <span>{taskLookup.get(block.task_id)?.title ?? "Unknown task"}</span>
+                      </div>
+                      <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="empty-state">No planned blocks for today.</p>
+              )}
+            </section>
+
+            <section>
+              <div className="home-mini-header">
+                <h3>Experiments</h3>
+                <span>{dashboard.runningExperiments.length + dashboard.stalledExperiments.length}</span>
+              </div>
+              {attentionExperiments.length > 0 ? (
+                <ul className="entity-list">
+                  {attentionExperiments.map((experiment) => (
+                    <li
+                      className={
+                        experiment.status === "stalled"
+                          ? "entity-row entity-row--alert"
+                          : "entity-row"
+                      }
+                      key={experiment.id}
+                    >
+                      <div>
+                        <strong>{experiment.title}</strong>
+                        <span>{taskLookup.get(experiment.task_id)?.title ?? "Unknown task"}</span>
+                      </div>
+                      <span className={`pill pill--${experiment.status}`}>
+                        {experiment.status}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="empty-state">No running or stalled experiments.</p>
+              )}
+            </section>
+
+            {dashboard.activeTask ? (
+              <section>
+                <div className="home-mini-header">
+                  <h3>Ready tasks</h3>
+                  <span>{readyTasks.length}</span>
+                </div>
+                {readyTasks.length > 0 ? (
+                  <ul className="entity-list home-ready-list">
+                    {readyTasks.map((task) => (
+                      <li className="entity-row" key={task.id}>
+                        <div>
+                          <strong>{task.title}</strong>
+                          <span>
+                            {statusLabel(task.status)} - {task.priority}
+                          </span>
+                        </div>
+                        <button
+                          className="button button--ghost button--small"
+                          disabled={busyTaskId === task.id}
+                          onClick={() => void handleSwitchTask(task.id)}
+                          type="button"
+                        >
+                          {busyTaskId === task.id ? "Switching..." : "Switch"}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">No other ready tasks.</p>
+                )}
+              </section>
+            ) : null}
+
+            <ul className="home-metric-row" aria-label="Task counts">
+              <li>
+                <span>Waiting</span>
+                <strong>{countByStatus(dashboard.tasks, "waiting")}</strong>
+              </li>
+              <li>
+                <span>Blocked</span>
+                <strong>{countByStatus(dashboard.tasks, "blocked")}</strong>
+              </li>
+              <li>
+                <span>Done</span>
+                <strong>{countByStatus(dashboard.tasks, "done")}</strong>
+              </li>
+            </ul>
+          </div>
         </article>
       </section>
 
-      <section className="panel panel--wide home-hidden-panel">
-        <div className="panel-header">
-          <div>
-            <p className="section-kicker">Global tasks</p>
-            <h2>One-shot view of the current workload</h2>
-          </div>
-          <label className="search-field">
-            <span>Filter</span>
-            <input
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search title or description"
-              value={query}
-            />
-          </label>
-        </div>
+      {quickAction ? (
+        <div className="home-action-overlay" onMouseDown={() => setQuickAction(null)}>
+          <article
+            aria-labelledby={`home-${quickAction}-title`}
+            aria-modal="true"
+            className={
+              quickAction === "task"
+                ? "panel home-action-dialog home-action-dialog--wide"
+                : "panel home-action-dialog"
+            }
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="panel-header">
+              <div>
+                <p className="section-kicker">Quick action</p>
+                <h2 id={`home-${quickAction}-title`}>
+                  {quickAction === "task"
+                    ? "New task"
+                    : quickAction === "note"
+                      ? "New note"
+                      : "New experiment"}
+                </h2>
+              </div>
+              <button
+                className="button button--ghost button--small"
+                onClick={() => setQuickAction(null)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
 
-        {isLoading ? <div className="banner">Loading Flow Desk...</div> : null}
-
-        <div className="task-grid">
-          {filteredTasks.map((task) => {
-            const isActive = task.id === activeTaskId;
-            const canStart = activeTaskId === null && !["done", "archived"].includes(task.status);
-            const canSwitch =
-              activeTaskId !== null &&
-              activeTaskId !== task.id &&
-              !["done", "archived"].includes(task.status);
-
-            return (
-              <article className="task-card" key={task.id}>
-                <div className="task-card__head">
-                  <div>
-                    <p className="task-card__title">{task.title}</p>
-                    <p className="task-card__timestamp">
-                      Updated {formatDateTime(task.updated_at)}
-                    </p>
-                  </div>
-                  <div className="pill-row pill-row--tight">
-                    <span className={`pill pill--${task.status}`}>{statusLabel(task.status)}</span>
-                    <span className={`pill pill--priority-${task.priority}`}>{task.priority}</span>
-                  </div>
-                </div>
-
-                <p className="task-card__description">
-                  {task.description || "No task description yet."}
-                </p>
-
-                <div className="task-card__meta">
-                  <span>Waiting: {waitingLabel(task.waiting_reason)}</span>
-                  <span>
-                    Macro:{" "}
-                    {task.macro_activity_id
-                      ? macroActivityLookup.get(task.macro_activity_id)?.name ?? "Unknown"
-                      : "None"}
-                  </span>
-                  <span>
-                    GitHub:{" "}
-                    {task.github_reference_id
-                      ? githubReferenceLookup.get(task.github_reference_id)
-                        ? formatGitHubReference(
-                            githubReferenceLookup.get(task.github_reference_id) as GitHubReference
-                          )
-                        : "Unknown"
-                      : "None"}
-                  </span>
-                  <span>Created: {formatDateTime(task.created_at)}</span>
-                </div>
-
-                <div className="task-card__actions">
-                  {isActive ? (
-                    <button className="button button--inactive" disabled type="button">
-                      Active now
-                    </button>
-                  ) : null}
-                  {canStart ? (
-                    <button
-                      className="button button--accent"
-                      disabled={busyTaskId === task.id}
-                      onClick={() => void handleStartTask(task.id)}
-                      type="button"
+            {quickAction === "task" ? (
+              <form className="create-form" onSubmit={(event) => void handleCreateTask(event)}>
+                <label>
+                  <span>Title</span>
+                  <input
+                    onChange={(event) => setCreateTitle(event.target.value)}
+                    placeholder="Investigate stalled coupled run"
+                    value={createTitle}
+                  />
+                </label>
+                <label>
+                  <span>Description</span>
+                  <textarea
+                    onChange={(event) => setCreateDescription(event.target.value)}
+                    placeholder="Capture what you need to do next, not the whole project context."
+                    rows={4}
+                    value={createDescription}
+                  />
+                </label>
+                <label>
+                  <span>Priority</span>
+                  <select
+                    onChange={(event) => setCreatePriority(event.target.value as TaskPriority)}
+                    value={createPriority}
+                  >
+                    {priorityOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Macro-activity</span>
+                  <select
+                    onChange={(event) =>
+                      setCreateMacroActivityMode(event.target.value as CreateMacroActivityMode)
+                    }
+                    value={createMacroActivityMode}
+                  >
+                    <option value="none">No macro-activity</option>
+                    <option value="existing">Use existing</option>
+                    <option value="new">Create new</option>
+                  </select>
+                </label>
+                {createMacroActivityMode === "existing" ? (
+                  <label>
+                    <span>Existing macro-activity</span>
+                    <select
+                      onChange={(event) => setCreateMacroActivityId(event.target.value)}
+                      value={createMacroActivityId}
                     >
-                      {busyTaskId === task.id ? "Starting..." : "Start"}
-                    </button>
-                  ) : null}
-                  {canSwitch ? (
-                    <button
-                      className="button button--ghost"
-                      disabled={busyTaskId === task.id}
-                      onClick={() => void handleSwitchTask(task.id)}
-                      type="button"
+                      <option value="">Pick macro-activity</option>
+                      {dashboard.macroActivities.map((macroActivity) => (
+                        <option key={macroActivity.id} value={macroActivity.id}>
+                          {macroActivity.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                {createMacroActivityMode === "new" ? (
+                  <div className="embedded-form-grid">
+                    <label>
+                      <span>New macro name</span>
+                      <input
+                        onChange={(event) =>
+                          setMacroActivityForm((current) => ({
+                            ...current,
+                            name: event.target.value
+                          }))
+                        }
+                        placeholder="Coupled model runs"
+                        value={macroActivityForm.name}
+                      />
+                    </label>
+                    <label>
+                      <span>Description</span>
+                      <input
+                        onChange={(event) =>
+                          setMacroActivityForm((current) => ({
+                            ...current,
+                            description: event.target.value
+                          }))
+                        }
+                        placeholder="Optional scope note"
+                        value={macroActivityForm.description}
+                      />
+                    </label>
+                    <label>
+                      <span>Color</span>
+                      <input
+                        onChange={(event) =>
+                          setMacroActivityForm((current) => ({
+                            ...current,
+                            colorHex: event.target.value
+                          }))
+                        }
+                        type="color"
+                        value={macroActivityForm.colorHex}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+                <label>
+                  <span>GitHub reference</span>
+                  <select
+                    onChange={(event) =>
+                      setCreateGitHubReferenceMode(event.target.value as CreateGitHubReferenceMode)
+                    }
+                    value={createGitHubReferenceMode}
+                  >
+                    <option value="none">No GitHub reference</option>
+                    <option value="existing">Use existing</option>
+                    <option value="new">Create new</option>
+                  </select>
+                </label>
+                {createGitHubReferenceMode === "existing" ? (
+                  <label>
+                    <span>Existing GitHub reference</span>
+                    <select
+                      onChange={(event) => setCreateGitHubReferenceId(event.target.value)}
+                      value={createGitHubReferenceId}
                     >
-                      {busyTaskId === task.id ? "Switching..." : "Switch here"}
-                    </button>
-                  ) : null}
+                      <option value="">Pick GitHub reference</option>
+                      {availableGithubReferences.map((reference) => (
+                        <option key={reference.id} value={reference.id}>
+                          {formatGitHubReference(reference)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                {createGitHubReferenceMode === "new" ? (
+                  <div className="embedded-form-grid">
+                    <div className="segmented-control">
+                      <button
+                        className={
+                          githubReferenceForm.entryMode === "url"
+                            ? "segmented-control__item segmented-control__item--active"
+                            : "segmented-control__item"
+                        }
+                        onClick={() =>
+                          setGitHubReferenceForm((current) => ({ ...current, entryMode: "url" }))
+                        }
+                        type="button"
+                      >
+                        Paste URL
+                      </button>
+                      <button
+                        className={
+                          githubReferenceForm.entryMode === "manual"
+                            ? "segmented-control__item segmented-control__item--active"
+                            : "segmented-control__item"
+                        }
+                        onClick={() =>
+                          setGitHubReferenceForm((current) => ({
+                            ...current,
+                            entryMode: "manual"
+                          }))
+                        }
+                        type="button"
+                      >
+                        Manual
+                      </button>
+                    </div>
+                    {githubReferenceForm.entryMode === "url" ? (
+                      <label>
+                        <span>GitHub issue or PR URL</span>
+                        <input
+                          onChange={(event) =>
+                            setGitHubReferenceForm((current) => ({
+                              ...current,
+                              issueUrl: event.target.value
+                            }))
+                          }
+                          placeholder="https://github.com/org/project/issues/42"
+                          value={githubReferenceForm.issueUrl}
+                        />
+                      </label>
+                    ) : (
+                      <>
+                        <label>
+                          <span>Repository</span>
+                          <input
+                            onChange={(event) =>
+                              setGitHubReferenceForm((current) => ({
+                                ...current,
+                                repositoryFullName: event.target.value
+                              }))
+                            }
+                            placeholder="org/project"
+                            value={githubReferenceForm.repositoryFullName}
+                          />
+                        </label>
+                        <label>
+                          <span>Issue or PR number</span>
+                          <input
+                            min="1"
+                            onChange={(event) =>
+                              setGitHubReferenceForm((current) => ({
+                                ...current,
+                                issueNumber: event.target.value
+                              }))
+                            }
+                            placeholder="42"
+                            type="number"
+                            value={githubReferenceForm.issueNumber}
+                          />
+                        </label>
+                      </>
+                    )}
+                    <label>
+                      <span>Title</span>
+                      <input
+                        onChange={(event) =>
+                          setGitHubReferenceForm((current) => ({
+                            ...current,
+                            cachedTitle: event.target.value
+                          }))
+                        }
+                        placeholder="Optional"
+                        value={githubReferenceForm.cachedTitle}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+                <div className="form-actions">
+                  <button
+                    className="button button--ghost"
+                    onClick={() => setQuickAction(null)}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                  <button className="button button--accent" disabled={isCreating} type="submit">
+                    {isCreating ? "Creating..." : "Create task"}
+                  </button>
                 </div>
-              </article>
-            );
-          })}
+              </form>
+            ) : null}
+
+            {quickAction === "note" ? (
+              <form
+                className="compact-form compact-form--flush"
+                onSubmit={(event) => void handleAppendJournalEntry(event)}
+              >
+                <label>
+                  <span>Linked task</span>
+                  <select
+                    onChange={(event) => setJournalTaskId(event.target.value)}
+                    value={journalTaskId}
+                  >
+                    <option value="">No linked task</option>
+                    {openTasks.map((task) => (
+                      <option key={task.id} value={task.id}>
+                        {task.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Quick note</span>
+                  <textarea
+                    onChange={(event) => setJournalEntry(event.target.value)}
+                    placeholder="Capture the observation while it is fresh."
+                    rows={6}
+                    value={journalEntry}
+                  />
+                </label>
+                <div className="form-actions">
+                  <button
+                    className="button button--ghost"
+                    onClick={() => setQuickAction(null)}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="button button--accent"
+                    disabled={isAppendingJournal}
+                    type="submit"
+                  >
+                    {isAppendingJournal ? "Appending..." : "Append entry"}
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            {quickAction === "experiment" ? (
+              <form
+                className="compact-form compact-form--flush"
+                onSubmit={(event) => void handleRegisterExperiment(event)}
+              >
+                <label>
+                  <span>Task</span>
+                  <select
+                    disabled={openTasks.length === 0}
+                    onChange={(event) => setExperimentTaskId(event.target.value)}
+                    value={defaultExperimentTaskId}
+                  >
+                    {openTasks.length === 0 ? <option value="">No open tasks</option> : null}
+                    {openTasks.map((task) => (
+                      <option key={task.id} value={task.id}>
+                        {task.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Title</span>
+                  <input
+                    onChange={(event) => setExperimentTitle(event.target.value)}
+                    placeholder="Scaling run 256 ranks"
+                    value={experimentTitle}
+                  />
+                </label>
+                <label>
+                  <span>Instruction</span>
+                  <textarea
+                    onChange={(event) => setExperimentInstruction(event.target.value)}
+                    placeholder="What this run should prove or disprove."
+                    rows={4}
+                    value={experimentInstruction}
+                  />
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select
+                    onChange={(event) => setExperimentStatus(event.target.value as ExperimentStatus)}
+                    value={experimentStatus}
+                  >
+                    {experimentStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="form-actions">
+                  <button
+                    className="button button--ghost"
+                    onClick={() => setQuickAction(null)}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="button button--accent"
+                    disabled={isRegisteringExperiment || defaultExperimentTaskId.length === 0}
+                    type="submit"
+                  >
+                    {isRegisteringExperiment ? "Registering..." : "Register experiment"}
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </article>
         </div>
-      </section>
+      ) : null}
     </main>
   );
 }

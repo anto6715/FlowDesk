@@ -216,6 +216,13 @@ body {
   font-size: 0.98rem;
 }
 
+.sync-chip--quiet {
+  min-width: 11.5rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 1rem;
+  box-shadow: none;
+}
+
 .home-toolbar,
 .journal-actions {
   display: flex;
@@ -225,33 +232,139 @@ body {
   gap: 0.75rem;
 }
 
+.home-action-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
 .button--round {
   border-radius: 999px;
 }
 
-.page-shell--home .summary-grid {
-  grid-template-columns: minmax(0, 1fr);
+.button--mini {
+  padding: 0.58rem 0.78rem;
+  font-size: 0.88rem;
 }
 
-.home-secondary-card,
-.summary-card.home-create-card--hidden,
-.panel.home-experiment-panel--hidden,
-.panel.home-hidden-panel,
-.compact-form.home-note-form--hidden {
-  display: none;
+.home-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+  gap: 1.25rem;
+  align-items: start;
 }
 
-.home-create-card,
-.home-experiment-panel {
-  border-color: rgba(15, 109, 97, 0.14);
+.home-active-card {
+  grid-row: span 2;
 }
 
-.home-operations-grid {
-  grid-template-columns: minmax(0, 1fr);
+.home-journal-panel,
+.home-next-panel {
+  margin-top: 0;
 }
 
-.home-journal-panel {
-  min-height: 24rem;
+.home-context-stack {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.home-context-stack section {
+  min-width: 0;
+}
+
+.home-mini-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: center;
+  margin-bottom: 0.65rem;
+}
+
+.home-mini-header h3 {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+.home-mini-header span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.8rem;
+  min-height: 1.8rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(30, 27, 24, 0.08);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.home-ready-list {
+  margin-top: 1rem;
+}
+
+.home-metric-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-metric-row li {
+  padding: 0.75rem;
+  border: 1px solid rgba(30, 27, 24, 0.07);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.home-metric-row span {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.home-metric-row strong {
+  font-size: 1.25rem;
+}
+
+.home-waiting-details {
+  margin-top: 1rem;
+}
+
+.home-waiting-details summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.home-action-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 1.5rem;
+  background: rgba(30, 27, 24, 0.24);
+}
+
+.home-action-dialog {
+  width: min(34rem, 100%);
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+  margin-top: 0;
+}
+
+.home-action-dialog--wide {
+  width: min(42rem, 100%);
 }
 
 .summary-grid {
@@ -487,11 +600,20 @@ body {
 
 .action-row,
 .task-card__actions,
-.waiting-bar {
+.waiting-bar,
+.form-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.8rem;
   margin-top: 1.2rem;
+}
+
+.form-actions {
+  justify-content: flex-end;
+}
+
+.waiting-bar--compact {
+  align-items: end;
 }
 
 .action-row--top {
@@ -1166,6 +1288,27 @@ textarea {
     flex-direction: column;
   }
 
+  .home-toolbar {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .home-action-group {
+    width: 100%;
+  }
+
+  .sync-chip--quiet {
+    width: 100%;
+  }
+
+  .home-action-overlay {
+    padding: 0.75rem;
+  }
+
+  .home-action-dialog {
+    max-height: calc(100vh - 1.5rem);
+  }
+
   .calendar-day-board {
     grid-template-columns: 3.6rem minmax(0, 1fr);
     min-height: 36rem;
@@ -1185,9 +1328,14 @@ textarea {
 @media (max-width: 1024px) {
   .summary-grid,
   .summary-grid--tasks,
+  .home-dashboard-grid,
   .detail-grid,
   .operations-grid--detail {
     grid-template-columns: 1fr;
+  }
+
+  .home-active-card {
+    grid-row: auto;
   }
 
   .panel-header,
