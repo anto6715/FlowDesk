@@ -158,6 +158,13 @@ export interface CreateExperimentInput {
   result_path?: string | null;
 }
 
+export interface UpdateExperimentStateInput {
+  status: ExperimentStatus;
+  started_at?: string | null;
+  ended_at?: string | null;
+  outcome_summary?: string | null;
+}
+
 export interface ScheduledBlock {
   id: string;
   task_id: string;
@@ -313,6 +320,16 @@ export async function listExperiments(options?: {
 
 export async function registerExperiment(input: CreateExperimentInput): Promise<Experiment> {
   return request<Experiment>("/experiments", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function setExperimentState(
+  experimentId: string,
+  input: UpdateExperimentStateInput
+): Promise<Experiment> {
+  return request<Experiment>(`/experiments/${experimentId}/state`, {
     method: "POST",
     body: JSON.stringify(input)
   });

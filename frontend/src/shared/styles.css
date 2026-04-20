@@ -51,6 +51,7 @@ body {
 
 .app-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.55rem;
   width: min(1240px, 100%);
   margin: 0 auto;
@@ -299,6 +300,7 @@ body {
 .task-card__meta span,
 .context-row span,
 .search-field span,
+.date-field span,
 .filter-grid label span,
 .create-form label span,
 .compact-form label span,
@@ -397,6 +399,11 @@ select {
   color: var(--muted);
 }
 
+.button--small {
+  padding: 0.55rem 0.72rem;
+  font-size: 0.85rem;
+}
+
 .create-form {
   display: grid;
   gap: 1rem;
@@ -405,6 +412,7 @@ select {
 .create-form label,
 .compact-form label,
 .search-field,
+.date-field,
 .waiting-bar label {
   display: grid;
   gap: 0.45rem;
@@ -455,6 +463,11 @@ textarea {
   margin-top: 0;
 }
 
+.operations-grid--journal,
+.operations-grid--calendar {
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+}
+
 .panel--wide {
   padding: 1.65rem;
 }
@@ -498,6 +511,10 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.85rem;
   margin-bottom: 1rem;
+}
+
+.filter-grid--compact {
+  grid-template-columns: minmax(240px, 0.35fr);
 }
 
 .filter-grid label {
@@ -586,6 +603,11 @@ textarea {
   border-top: 1px solid rgba(30, 27, 24, 0.07);
 }
 
+.compact-form--flush {
+  padding-top: 0;
+  border-top: 0;
+}
+
 .reference-tools {
   display: grid;
   gap: 1rem;
@@ -613,6 +635,10 @@ textarea {
 
 .journal-list {
   counter-reset: journal;
+}
+
+.journal-list--long {
+  gap: 1rem;
 }
 
 .journal-list li {
@@ -694,6 +720,13 @@ textarea {
 
 .task-table .pill {
   margin-top: 0;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  min-width: 16rem;
 }
 
 .text-link {
@@ -782,6 +815,11 @@ textarea {
   }
 
   .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .operations-grid--journal,
+  .operations-grid--calendar {
     grid-template-columns: 1fr;
   }
 }

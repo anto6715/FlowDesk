@@ -33,6 +33,7 @@ Implemented so far:
 - Today cockpit frontend with task timing, experiments, planned blocks, and journal entries
 - richer task creation with macro-activity and GitHub reference selection/creation
 - app-level navigation with a dense Global Tasks view
+- dedicated Experiments, Journal, and Calendar views
 - backend API tests against temporary SQLite databases
 - verified frontend production build
 
@@ -91,10 +92,10 @@ npm run build
 
 Near-term implementation order:
 
-1. Add dedicated experiment, journal, and calendar views.
-2. Add richer task detail UI with notes, references, sessions, and linked experiments.
-3. Add report read models and reporting UI.
-4. Add backup/export/import baseline.
+1. Add richer task detail UI with notes, references, sessions, and linked experiments.
+2. Add report read models and reporting UI.
+3. Add backup/export/import baseline.
+4. Add task and experiment detail read models on the backend if UI drill-down needs denormalized payloads.
 
 ## Design references
 
