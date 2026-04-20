@@ -32,6 +32,15 @@ class GitHubReferenceCreate(BaseModel):
     cached_labels: list[str] | None = None
 
 
+class GitHubReferenceUpdate(BaseModel):
+    repository_full_name: str | None = Field(default=None, min_length=1, max_length=255)
+    issue_number: int | None = Field(default=None, gt=0)
+    issue_url: str | None = Field(default=None, min_length=1, max_length=512)
+    cached_title: str | None = Field(default=None, max_length=255)
+    cached_state: str | None = Field(default=None, max_length=32)
+    cached_labels: list[str] | None = None
+
+
 class GitHubReferenceRead(ORMModel):
     id: str
     repository_full_name: str

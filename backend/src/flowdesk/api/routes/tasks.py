@@ -11,6 +11,7 @@ from flowdesk.schemas.tasks import (
     TaskCreate,
     TaskRead,
     TaskSessionResponse,
+    TaskUpdate,
     WorkSessionRead,
 )
 from flowdesk.services.tasks import (
@@ -25,6 +26,7 @@ from flowdesk.services.tasks import (
     pause_task,
     start_task,
     switch_task,
+    update_task_metadata,
 )
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -55,6 +57,29 @@ def create_new_task(
         return TaskRead.model_validate(task)
     except LinkedEntityNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.patch("/{task_id}", response_model=TaskRead)
+def update_existing_task(
+    task_id: str,
+    payload: TaskUpdate,
+    session: Session = Depends(get_db_session),
+) -> TaskRead:
+    try:
+        with session.begin():
+            task = update_task_metadata(
+                session,
+                task_id,
+                updates=payload.model_dump(exclude_unset=True),
+            )
+        session.refresh(task)
+        return TaskRead.model_validate(task)
+    except TaskNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except LinkedEntityNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except TaskConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
 
 @router.get("/active", response_model=ActiveTaskResponse)

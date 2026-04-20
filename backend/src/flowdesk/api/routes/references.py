@@ -5,15 +5,18 @@ from flowdesk.db import get_db_session
 from flowdesk.schemas.references import (
     GitHubReferenceCreate,
     GitHubReferenceRead,
+    GitHubReferenceUpdate,
     MacroActivityCreate,
     MacroActivityRead,
 )
 from flowdesk.services.references import (
     DuplicateReferenceError,
+    ReferenceNotFoundError,
     create_github_reference,
     create_macro_activity,
     list_github_references,
     list_macro_activities,
+    update_github_reference,
 )
 
 router = APIRouter(tags=["references"])
@@ -78,5 +81,26 @@ def create_github_reference_route(
             )
         session.refresh(reference)
         return GitHubReferenceRead.model_validate(reference)
+    except DuplicateReferenceError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@router.patch("/github-references/{reference_id}", response_model=GitHubReferenceRead)
+def update_github_reference_route(
+    reference_id: str,
+    payload: GitHubReferenceUpdate,
+    session: Session = Depends(get_db_session),
+) -> GitHubReferenceRead:
+    try:
+        with session.begin():
+            reference = update_github_reference(
+                session,
+                reference_id,
+                updates=payload.model_dump(exclude_unset=True),
+            )
+        session.refresh(reference)
+        return GitHubReferenceRead.model_validate(reference)
+    except ReferenceNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except DuplicateReferenceError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

@@ -17,6 +17,14 @@ class TaskCreate(BaseModel):
     github_reference_id: str | None = None
 
 
+class TaskUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    priority: TaskPriority | None = None
+    macro_activity_id: str | None = None
+    github_reference_id: str | None = None
+
+
 class TaskRead(ORMModel):
     id: str
     title: str
@@ -74,4 +82,3 @@ class SwitchTaskResponse(BaseModel):
     ended_work_session: WorkSessionRead
     to_task: TaskRead
     started_work_session: WorkSessionRead
-

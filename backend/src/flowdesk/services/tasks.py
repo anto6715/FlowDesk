@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from flowdesk.db.models import (
@@ -107,6 +109,51 @@ def create_task(
         from_state=None,
         to_state=task.status,
     )
+    return task
+
+
+def update_task_metadata(
+    session: Session,
+    task_id: str,
+    *,
+    updates: dict[str, Any],
+) -> Task:
+    task = _get_task_or_raise(session, task_id)
+
+    if "macro_activity_id" in updates:
+        macro_activity_id = updates["macro_activity_id"]
+        if macro_activity_id is not None and session.get(MacroActivity, macro_activity_id) is None:
+            raise LinkedEntityNotFoundError(f"Macro activity '{macro_activity_id}' was not found.")
+        task.macro_activity_id = macro_activity_id
+
+    if "github_reference_id" in updates:
+        github_reference_id = updates["github_reference_id"]
+        if github_reference_id is not None:
+            if session.get(GitHubReference, github_reference_id) is None:
+                raise LinkedEntityNotFoundError(f"GitHub reference '{github_reference_id}' was not found.")
+            existing_task = session.scalar(
+                select(Task)
+                .where(Task.github_reference_id == github_reference_id)
+                .where(Task.id != task.id)
+            )
+            if existing_task is not None:
+                raise TaskConflictError("This GitHub reference is already linked to another task.")
+        task.github_reference_id = github_reference_id
+
+    if "title" in updates and updates["title"] is not None:
+        task.title = updates["title"]
+    if "description" in updates:
+        task.description = updates["description"]
+    if "priority" in updates and updates["priority"] is not None:
+        task.priority = updates["priority"]
+
+    task.updated_at = utcnow()
+
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        raise TaskConflictError("Task metadata update conflicts with existing data.") from exc
+
     return task
 
 

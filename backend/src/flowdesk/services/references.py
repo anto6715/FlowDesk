@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -13,6 +16,14 @@ class ReferenceServiceError(Exception):
 
 class DuplicateReferenceError(ReferenceServiceError):
     """Raised when a unique macro-activity or GitHub reference already exists."""
+
+
+class ReferenceNotFoundError(ReferenceServiceError):
+    """Raised when a macro-activity or GitHub reference does not exist."""
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def list_macro_activities(session: Session) -> list[MacroActivity]:
@@ -73,6 +84,39 @@ def create_github_reference(
     except IntegrityError as exc:
         raise DuplicateReferenceError(
             f"GitHub reference '{repository_full_name}#{issue_number}' already exists."
+        ) from exc
+
+    return reference
+
+
+def update_github_reference(
+    session: Session,
+    reference_id: str,
+    *,
+    updates: dict[str, Any],
+) -> GitHubReference:
+    reference = session.get(GitHubReference, reference_id)
+    if reference is None:
+        raise ReferenceNotFoundError(f"GitHub reference '{reference_id}' was not found.")
+
+    target_repository = updates.get("repository_full_name", reference.repository_full_name)
+    target_issue_number = updates.get("issue_number", reference.issue_number)
+
+    for field in ("repository_full_name", "issue_number", "issue_url"):
+        if field in updates and updates[field] is not None:
+            setattr(reference, field, updates[field])
+
+    for field in ("cached_title", "cached_state", "cached_labels"):
+        if field in updates:
+            setattr(reference, field, updates[field])
+
+    reference.updated_at = utcnow()
+
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        raise DuplicateReferenceError(
+            f"GitHub reference '{target_repository}#{target_issue_number}' already exists."
         ) from exc
 
     return reference

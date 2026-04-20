@@ -40,6 +40,83 @@ def test_create_task_with_linked_references(client: TestClient) -> None:
     assert response.json()["github_reference_id"] == github_reference.json()["id"]
 
 
+def test_update_task_metadata_and_references(client: TestClient) -> None:
+    first_macro = client.post("/api/macro-activities", json={"name": "Old Macro"}).json()
+    second_macro = client.post("/api/macro-activities", json={"name": "New Macro"}).json()
+    first_reference = client.post(
+        "/api/github-references",
+        json={
+            "repository_full_name": "org/old",
+            "issue_number": 1,
+            "issue_url": "https://github.com/org/old/issues/1",
+        },
+    ).json()
+    second_reference = client.post(
+        "/api/github-references",
+        json={
+            "repository_full_name": "org/new",
+            "issue_number": 2,
+            "issue_url": "https://github.com/org/new/issues/2",
+        },
+    ).json()
+    task = client.post(
+        "/api/tasks",
+        json={
+            "title": "Wrong metadata",
+            "priority": "normal",
+            "macro_activity_id": first_macro["id"],
+            "github_reference_id": first_reference["id"],
+        },
+    ).json()
+
+    response = client.patch(
+        f"/api/tasks/{task['id']}",
+        json={
+            "title": "Correct metadata",
+            "description": "Updated task context.",
+            "priority": "urgent",
+            "macro_activity_id": second_macro["id"],
+            "github_reference_id": second_reference["id"],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["title"] == "Correct metadata"
+    assert payload["description"] == "Updated task context."
+    assert payload["priority"] == "urgent"
+    assert payload["macro_activity_id"] == second_macro["id"]
+    assert payload["github_reference_id"] == second_reference["id"]
+
+
+def test_update_task_metadata_rejects_conflicting_github_reference(client: TestClient) -> None:
+    reference = client.post(
+        "/api/github-references",
+        json={
+            "repository_full_name": "org/project",
+            "issue_number": 77,
+            "issue_url": "https://github.com/org/project/issues/77",
+        },
+    ).json()
+    first_task = client.post(
+        "/api/tasks",
+        json={
+            "title": "Owns issue",
+            "github_reference_id": reference["id"],
+        },
+    ).json()
+    second_task = client.post("/api/tasks", json={"title": "Tries issue"}).json()
+
+    response = client.patch(
+        f"/api/tasks/{second_task['id']}",
+        json={"github_reference_id": reference["id"]},
+    )
+
+    assert first_task["github_reference_id"] == reference["id"]
+    assert response.status_code == 409
+    assert "already linked" in response.json()["detail"]
+
+
 def test_task_start_switch_and_wait_flow(client: TestClient) -> None:
     first_task = client.post("/api/tasks", json={"title": "Prepare run report"}).json()
     second_task = client.post("/api/tasks", json={"title": "Review PR feedback"}).json()
