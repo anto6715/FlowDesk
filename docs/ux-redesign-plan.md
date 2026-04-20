@@ -12,9 +12,11 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - Keep existing backend contracts intact where possible.
 - Verify and commit each point before asking to continue.
 
-## Current active point
+## Current status
 
-Point 1: shell/layout foundation and hidden-action pattern.
+- Point 1 completed in `1ec4268`.
+- Point 2 has not started.
+- Ask the user before starting Point 2.
 
 ## Redesign goals
 
@@ -124,4 +126,3 @@ git diff --check
 ```
 
 Use browser screenshots for UX acceptance when layout changes are involved.
-

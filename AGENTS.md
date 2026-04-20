@@ -38,6 +38,8 @@
 - Task-linked daily journal entries committed in `8af9b9e`
 - Dedicated experiment registration UI committed in `ecb7523`
 - SQLite Alembic version-stamp persistence fix committed in `1d74f04`
+- UX redesign plan committed in `b5eb63d`
+- UX redesign Point 1 shell/hidden-action foundation committed in `1ec4268`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
