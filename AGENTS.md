@@ -40,6 +40,7 @@
   - local API client coverage for experiments, scheduled blocks, and journal entries
   - Today panels for running/stalled experiments, planned blocks, and daily journal entries
   - quick actions to register experiments, schedule blocks, and append journal entries
+  - richer task creation with macro-activity and GitHub reference selection/creation
   - Vite proxy to the backend `/api`
   - verified production build with `npm run build`
 
@@ -77,9 +78,9 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. Connect macro-activities and GitHub references into richer task creation UI
-2. Add frontend navigation beyond the `Today` cockpit
-3. Add dedicated experiment, journal, and calendar views
+1. Add frontend navigation beyond the `Today` cockpit
+2. Add dedicated experiment, journal, and calendar views
+3. Add richer task detail UI with notes, references, sessions, and linked experiments
 4. Extend reporting queries once the core flows are visible in the UI
 
 ## Commit guidance

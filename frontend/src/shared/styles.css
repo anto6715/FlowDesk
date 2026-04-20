@@ -252,6 +252,7 @@ body {
 .metric-list span,
 .task-card__timestamp,
 .task-card__meta span,
+.context-row span,
 .search-field span,
 .create-form label span,
 .compact-form label span,
@@ -277,6 +278,23 @@ body {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.context-row {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(30, 27, 24, 0.07);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.36);
+}
+
+.context-row span {
+  margin-bottom: 0;
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
 }
 
 .action-row,
@@ -355,6 +373,11 @@ select {
   padding: 0.85rem 0.95rem;
   background: rgba(255, 255, 255, 0.68);
   color: var(--text);
+}
+
+input[type="color"] {
+  height: 3rem;
+  padding: 0.25rem;
 }
 
 textarea {
@@ -503,6 +526,17 @@ textarea {
   gap: 0.9rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(30, 27, 24, 0.07);
+}
+
+.reference-tools {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.mini-title {
+  margin: 0;
+  font-weight: 800;
 }
 
 .inline-grid {

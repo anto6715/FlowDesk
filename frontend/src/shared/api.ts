@@ -77,6 +77,44 @@ export interface CreateTaskInput {
   github_reference_id?: string | null;
 }
 
+export interface MacroActivity {
+  id: string;
+  name: string;
+  description: string | null;
+  color_hex: string | null;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+}
+
+export interface CreateMacroActivityInput {
+  name: string;
+  description?: string | null;
+  color_hex?: string | null;
+}
+
+export interface GitHubReference {
+  id: string;
+  repository_full_name: string;
+  issue_number: number;
+  issue_url: string;
+  cached_title: string | null;
+  cached_state: string | null;
+  cached_labels: string[] | null;
+  last_synced_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateGitHubReferenceInput {
+  repository_full_name: string;
+  issue_number: number;
+  issue_url: string;
+  cached_title?: string | null;
+  cached_state?: string | null;
+  cached_labels?: string[] | null;
+}
+
 export interface Experiment {
   id: string;
   task_id: string;
@@ -200,6 +238,32 @@ export async function getActiveTask(): Promise<ActiveTaskResponse> {
 
 export async function createTask(input: CreateTaskInput): Promise<Task> {
   return request<Task>("/tasks", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function listMacroActivities(): Promise<MacroActivity[]> {
+  return request<MacroActivity[]>("/macro-activities");
+}
+
+export async function createMacroActivity(
+  input: CreateMacroActivityInput
+): Promise<MacroActivity> {
+  return request<MacroActivity>("/macro-activities", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function listGitHubReferences(): Promise<GitHubReference[]> {
+  return request<GitHubReference[]>("/github-references");
+}
+
+export async function createGitHubReference(
+  input: CreateGitHubReferenceInput
+): Promise<GitHubReference> {
+  return request<GitHubReference>("/github-references", {
     method: "POST",
     body: JSON.stringify(input)
   });

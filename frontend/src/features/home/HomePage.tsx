@@ -9,11 +9,15 @@ import {
 
 import {
   appendJournalEntry,
+  createGitHubReference,
+  createMacroActivity,
   createScheduledBlock,
   createTask,
   getActiveTask,
   listExperiments,
+  listGitHubReferences,
   listJournalEntries,
+  listMacroActivities,
   listScheduledBlocks,
   listTasks,
   pauseTask,
@@ -22,6 +26,8 @@ import {
   switchTask,
   type Experiment,
   type ExperimentStatus,
+  type GitHubReference,
+  type MacroActivity,
   type Note,
   type ScheduledBlock,
   type Task,
@@ -55,6 +61,8 @@ const experimentStatusOptions: Array<{ value: ExperimentStatus; label: string }>
 
 interface DashboardState {
   tasks: Task[];
+  macroActivities: MacroActivity[];
+  githubReferences: GitHubReference[];
   activeTask: Task | null;
   activeSessionStartedAt: string | null;
   runningExperiments: Experiment[];
@@ -67,6 +75,8 @@ interface DashboardState {
 
 const initialState: DashboardState = {
   tasks: [],
+  macroActivities: [],
+  githubReferences: [],
   activeTask: null,
   activeSessionStartedAt: null,
   runningExperiments: [],
@@ -124,6 +134,15 @@ function waitingLabel(value: WaitingReason | null) {
   return value.replace(/_/g, " ");
 }
 
+function formatGitHubReference(reference: GitHubReference) {
+  const title = reference.cached_title ? ` - ${reference.cached_title}` : "";
+  return `${reference.repository_full_name}#${reference.issue_number}${title}`;
+}
+
+function inferGitHubIssueUrl(repositoryFullName: string, issueNumber: number) {
+  return `https://github.com/${repositoryFullName}/issues/${issueNumber}`;
+}
+
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -170,6 +189,19 @@ interface ScheduleFormState {
   endsAt: string;
 }
 
+interface MacroActivityFormState {
+  name: string;
+  description: string;
+  colorHex: string;
+}
+
+interface GitHubReferenceFormState {
+  repositoryFullName: string;
+  issueNumber: string;
+  issueUrl: string;
+  cachedTitle: string;
+}
+
 export function HomePage() {
   const [dashboard, setDashboard] = useState<DashboardState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
@@ -178,12 +210,27 @@ export function HomePage() {
   const [isRegisteringExperiment, setIsRegisteringExperiment] = useState(false);
   const [isSchedulingBlock, setIsSchedulingBlock] = useState(false);
   const [isAppendingJournal, setIsAppendingJournal] = useState(false);
+  const [isCreatingMacroActivity, setIsCreatingMacroActivity] = useState(false);
+  const [isCreatingGitHubReference, setIsCreatingGitHubReference] = useState(false);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [createTitle, setCreateTitle] = useState("");
   const [createDescription, setCreateDescription] = useState("");
   const [createPriority, setCreatePriority] = useState<TaskPriority>("normal");
+  const [createMacroActivityId, setCreateMacroActivityId] = useState("");
+  const [createGitHubReferenceId, setCreateGitHubReferenceId] = useState("");
+  const [macroActivityForm, setMacroActivityForm] = useState<MacroActivityFormState>({
+    name: "",
+    description: "",
+    colorHex: "#0F6D61"
+  });
+  const [githubReferenceForm, setGitHubReferenceForm] = useState<GitHubReferenceFormState>({
+    repositoryFullName: "",
+    issueNumber: "",
+    issueUrl: "",
+    cachedTitle: ""
+  });
   const [waitingReason, setWaitingReason] = useState<WaitingReason>("experiment_running");
   const [experimentTaskId, setExperimentTaskId] = useState("");
   const [experimentTitle, setExperimentTitle] = useState("");
@@ -211,9 +258,20 @@ export function HomePage() {
     try {
       const journalDay = localDateKey();
       const dayBounds = localDayBounds(journalDay);
-      const [tasks, active, runningExperiments, stalledExperiments, scheduledBlocks, journalEntries] =
+      const [
+        tasks,
+        macroActivities,
+        githubReferences,
+        active,
+        runningExperiments,
+        stalledExperiments,
+        scheduledBlocks,
+        journalEntries
+      ] =
         await Promise.all([
           listTasks(),
+          listMacroActivities(),
+          listGitHubReferences(),
           getActiveTask(),
           listExperiments({ status: "running" }),
           listExperiments({ status: "stalled" }),
@@ -227,6 +285,8 @@ export function HomePage() {
       startTransition(() => {
         setDashboard({
           tasks,
+          macroActivities,
+          githubReferences,
           activeTask: active.task,
           activeSessionStartedAt: active.work_session?.started_at ?? null,
           runningExperiments,
@@ -283,16 +343,93 @@ export function HomePage() {
       await createTask({
         title: createTitle.trim(),
         description: createDescription.trim() || undefined,
-        priority: createPriority
+        priority: createPriority,
+        macro_activity_id: createMacroActivityId || null,
+        github_reference_id: createGitHubReferenceId || null
       });
       setCreateTitle("");
       setCreateDescription("");
       setCreatePriority("normal");
+      setCreateGitHubReferenceId("");
       await loadDashboard({ background: true });
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Failed to create task.");
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  async function handleCreateMacroActivity(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (macroActivityForm.name.trim().length === 0) {
+      setError("Macro-activity name is required.");
+      return;
+    }
+
+    setIsCreatingMacroActivity(true);
+    try {
+      const macroActivity = await createMacroActivity({
+        name: macroActivityForm.name.trim(),
+        description: macroActivityForm.description.trim() || undefined,
+        color_hex: macroActivityForm.colorHex
+      });
+      setMacroActivityForm({
+        name: "",
+        description: "",
+        colorHex: macroActivityForm.colorHex
+      });
+      setCreateMacroActivityId(macroActivity.id);
+      await loadDashboard({ background: true });
+    } catch (macroActivityError) {
+      setError(
+        macroActivityError instanceof Error
+          ? macroActivityError.message
+          : "Failed to create macro-activity."
+      );
+    } finally {
+      setIsCreatingMacroActivity(false);
+    }
+  }
+
+  async function handleCreateGitHubReference(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const repositoryFullName = githubReferenceForm.repositoryFullName.trim();
+    const issueNumber = Number.parseInt(githubReferenceForm.issueNumber, 10);
+
+    if (repositoryFullName.length === 0) {
+      setError("GitHub repository is required.");
+      return;
+    }
+    if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
+      setError("GitHub issue number must be a positive integer.");
+      return;
+    }
+
+    setIsCreatingGitHubReference(true);
+    try {
+      const reference = await createGitHubReference({
+        repository_full_name: repositoryFullName,
+        issue_number: issueNumber,
+        issue_url:
+          githubReferenceForm.issueUrl.trim() || inferGitHubIssueUrl(repositoryFullName, issueNumber),
+        cached_title: githubReferenceForm.cachedTitle.trim() || undefined
+      });
+      setGitHubReferenceForm({
+        repositoryFullName: "",
+        issueNumber: "",
+        issueUrl: "",
+        cachedTitle: ""
+      });
+      setCreateGitHubReferenceId(reference.id);
+      await loadDashboard({ background: true });
+    } catch (githubReferenceError) {
+      setError(
+        githubReferenceError instanceof Error
+          ? githubReferenceError.message
+          : "Failed to create GitHub reference."
+      );
+    } finally {
+      setIsCreatingGitHubReference(false);
     }
   }
 
@@ -457,6 +594,19 @@ export function HomePage() {
   const openTasks = dashboard.tasks.filter((task) => !["done", "archived"].includes(task.status));
   const activeTaskId = dashboard.activeTask?.id ?? null;
   const taskLookup = new Map(dashboard.tasks.map((task) => [task.id, task]));
+  const macroActivityLookup = new Map(
+    dashboard.macroActivities.map((macroActivity) => [macroActivity.id, macroActivity])
+  );
+  const githubReferenceLookup = new Map(
+    dashboard.githubReferences.map((githubReference) => [githubReference.id, githubReference])
+  );
+  const usedGithubReferenceIds = new Set(
+    dashboard.tasks.flatMap((task) => (task.github_reference_id ? [task.github_reference_id] : []))
+  );
+  const availableGithubReferences = dashboard.githubReferences.filter(
+    (reference) =>
+      !usedGithubReferenceIds.has(reference.id) || reference.id === createGitHubReferenceId
+  );
   const defaultExperimentTaskId = resolveTaskSelection(experimentTaskId);
   const defaultScheduleTaskId = resolveTaskSelection(scheduleForm.taskId);
 
@@ -486,6 +636,27 @@ export function HomePage() {
                 <span className={`pill pill--${dashboard.activeTask.status}`}>{statusLabel(dashboard.activeTask.status)}</span>
                 <span className={`pill pill--priority-${dashboard.activeTask.priority}`}>
                   {dashboard.activeTask.priority}
+                </span>
+              </div>
+              <div className="context-row">
+                <span>
+                  Macro:{" "}
+                  {dashboard.activeTask.macro_activity_id
+                    ? macroActivityLookup.get(dashboard.activeTask.macro_activity_id)?.name ??
+                      "Unknown"
+                    : "None"}
+                </span>
+                <span>
+                  GitHub:{" "}
+                  {dashboard.activeTask.github_reference_id
+                    ? githubReferenceLookup.get(dashboard.activeTask.github_reference_id)
+                      ? formatGitHubReference(
+                          githubReferenceLookup.get(
+                            dashboard.activeTask.github_reference_id
+                          ) as GitHubReference
+                        )
+                      : "Unknown"
+                    : "None"}
                 </span>
               </div>
               <div className="stat-strip">
@@ -610,10 +781,162 @@ export function HomePage() {
                 ))}
               </select>
             </label>
+            <label>
+              <span>Macro-activity</span>
+              <select
+                onChange={(event) => setCreateMacroActivityId(event.target.value)}
+                value={createMacroActivityId}
+              >
+                <option value="">No macro-activity</option>
+                {dashboard.macroActivities.map((macroActivity) => (
+                  <option key={macroActivity.id} value={macroActivity.id}>
+                    {macroActivity.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>GitHub reference</span>
+              <select
+                onChange={(event) => setCreateGitHubReferenceId(event.target.value)}
+                value={createGitHubReferenceId}
+              >
+                <option value="">No GitHub reference</option>
+                {availableGithubReferences.map((reference) => (
+                  <option key={reference.id} value={reference.id}>
+                    {formatGitHubReference(reference)}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button className="button button--accent" disabled={isCreating} type="submit">
               {isCreating ? "Creating..." : "Create task"}
             </button>
           </form>
+          <div className="reference-tools">
+            <form
+              className="compact-form"
+              onSubmit={(event) => void handleCreateMacroActivity(event)}
+            >
+              <p className="mini-title">New macro-activity</p>
+              <label>
+                <span>Name</span>
+                <input
+                  onChange={(event) =>
+                    setMacroActivityForm((current) => ({
+                      ...current,
+                      name: event.target.value
+                    }))
+                  }
+                  placeholder="Coupled model runs"
+                  value={macroActivityForm.name}
+                />
+              </label>
+              <label>
+                <span>Description</span>
+                <input
+                  onChange={(event) =>
+                    setMacroActivityForm((current) => ({
+                      ...current,
+                      description: event.target.value
+                    }))
+                  }
+                  placeholder="Optional scope note"
+                  value={macroActivityForm.description}
+                />
+              </label>
+              <label>
+                <span>Color</span>
+                <input
+                  onChange={(event) =>
+                    setMacroActivityForm((current) => ({
+                      ...current,
+                      colorHex: event.target.value
+                    }))
+                  }
+                  type="color"
+                  value={macroActivityForm.colorHex}
+                />
+              </label>
+              <button
+                className="button button--ghost"
+                disabled={isCreatingMacroActivity}
+                type="submit"
+              >
+                {isCreatingMacroActivity ? "Adding..." : "Add macro"}
+              </button>
+            </form>
+
+            <form
+              className="compact-form"
+              onSubmit={(event) => void handleCreateGitHubReference(event)}
+            >
+              <p className="mini-title">New GitHub reference</p>
+              <label>
+                <span>Repository</span>
+                <input
+                  onChange={(event) =>
+                    setGitHubReferenceForm((current) => ({
+                      ...current,
+                      repositoryFullName: event.target.value
+                    }))
+                  }
+                  placeholder="org/project"
+                  value={githubReferenceForm.repositoryFullName}
+                />
+              </label>
+              <div className="inline-grid">
+                <label>
+                  <span>Issue</span>
+                  <input
+                    min="1"
+                    onChange={(event) =>
+                      setGitHubReferenceForm((current) => ({
+                        ...current,
+                        issueNumber: event.target.value
+                      }))
+                    }
+                    placeholder="42"
+                    type="number"
+                    value={githubReferenceForm.issueNumber}
+                  />
+                </label>
+                <label>
+                  <span>Title</span>
+                  <input
+                    onChange={(event) =>
+                      setGitHubReferenceForm((current) => ({
+                        ...current,
+                        cachedTitle: event.target.value
+                      }))
+                    }
+                    placeholder="Optional"
+                    value={githubReferenceForm.cachedTitle}
+                  />
+                </label>
+              </div>
+              <label>
+                <span>Issue URL</span>
+                <input
+                  onChange={(event) =>
+                    setGitHubReferenceForm((current) => ({
+                      ...current,
+                      issueUrl: event.target.value
+                    }))
+                  }
+                  placeholder="Auto-filled if left blank"
+                  value={githubReferenceForm.issueUrl}
+                />
+              </label>
+              <button
+                className="button button--ghost"
+                disabled={isCreatingGitHubReference}
+                type="submit"
+              >
+                {isCreatingGitHubReference ? "Adding..." : "Add GitHub ref"}
+              </button>
+            </form>
+          </div>
         </article>
       </section>
 
@@ -908,6 +1231,22 @@ export function HomePage() {
 
                 <div className="task-card__meta">
                   <span>Waiting: {waitingLabel(task.waiting_reason)}</span>
+                  <span>
+                    Macro:{" "}
+                    {task.macro_activity_id
+                      ? macroActivityLookup.get(task.macro_activity_id)?.name ?? "Unknown"
+                      : "None"}
+                  </span>
+                  <span>
+                    GitHub:{" "}
+                    {task.github_reference_id
+                      ? githubReferenceLookup.get(task.github_reference_id)
+                        ? formatGitHubReference(
+                            githubReferenceLookup.get(task.github_reference_id) as GitHubReference
+                          )
+                        : "Unknown"
+                      : "None"}
+                  </span>
                   <span>Created: {formatDateTime(task.created_at)}</span>
                 </div>
 
