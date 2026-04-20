@@ -26,6 +26,7 @@
 - Today cockpit operational frontend integration committed in `af8a608`
 - Reference-aware task creation UI committed in `e4dc2b0`
 - Global Tasks navigation view committed in `ebc9aed`
+- Dedicated operational views committed in `7cbe422`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
