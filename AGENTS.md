@@ -27,6 +27,7 @@
   - macro-activity routes
   - GitHub reference routes
   - experiment registry routes with state-transition history
+  - scheduled-block planning routes with move/status history
   - API tests against temporary SQLite databases
 - Current frontend now includes:
   - first real `Today` cockpit
@@ -68,7 +69,7 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. Add scheduled-block and journal services/endpoints
+1. Add journal services/endpoints
 2. Connect macro-activities and GitHub references into richer task creation UI
 3. Add frontend navigation beyond the `Today` cockpit
 4. Extend reporting queries once the core flows are visible in the UI
