@@ -204,6 +204,7 @@ interface GitHubReferenceFormState {
 
 type CreateMacroActivityMode = "none" | "existing" | "new";
 type CreateGitHubReferenceMode = "none" | "existing" | "new";
+type HomeQuickAction = "task" | "experiment" | null;
 
 export function HomePage() {
   const [dashboard, setDashboard] = useState<DashboardState>(initialState);
@@ -215,6 +216,8 @@ export function HomePage() {
   const [isAppendingJournal, setIsAppendingJournal] = useState(false);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [quickAction, setQuickAction] = useState<HomeQuickAction>(null);
+  const [isJournalComposerOpen, setIsJournalComposerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [createTitle, setCreateTitle] = useState("");
   const [createDescription, setCreateDescription] = useState("");
@@ -423,6 +426,7 @@ export function HomePage() {
         issueUrl: "",
         cachedTitle: ""
       });
+      setQuickAction(null);
       await loadDashboard({ background: true });
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Failed to create task.");
@@ -521,6 +525,7 @@ export function HomePage() {
       setExperimentTitle("");
       setExperimentInstruction("");
       setExperimentStatus("running");
+      setQuickAction(null);
       await loadDashboard({ background: true });
     } catch (experimentError) {
       setError(
@@ -581,6 +586,7 @@ export function HomePage() {
     try {
       await appendJournalEntry(dashboard.journalDay, journalEntry.trim());
       setJournalEntry("");
+      setIsJournalComposerOpen(false);
       await loadDashboard({ background: true });
     } catch (journalError) {
       setError(journalError instanceof Error ? journalError.message : "Failed to append entry.");
@@ -609,15 +615,31 @@ export function HomePage() {
   const defaultScheduleTaskId = resolveTaskSelection(scheduleForm.taskId);
 
   return (
-    <main className="page-shell">
+    <main className="page-shell page-shell--home">
       <section className="hero hero--compact">
         <div>
-          <p className="eyebrow">Today cockpit</p>
-          <h1>Flow Desk</h1>
+          <p className="eyebrow">Home</p>
+          <h1>Today</h1>
         </div>
-        <div className="sync-chip">
-          <span>{isRefreshing ? "Refreshing..." : "Live local state"}</span>
-          <strong>{dashboard.syncedAt ? formatDateTime(dashboard.syncedAt.toISOString()) : "Sync pending"}</strong>
+        <div className="home-toolbar">
+          <button
+            className="button button--accent button--round"
+            onClick={() => setQuickAction(quickAction === "task" ? null : "task")}
+            type="button"
+          >
+            + Task
+          </button>
+          <button
+            className="button button--ghost button--round"
+            onClick={() => setQuickAction(quickAction === "experiment" ? null : "experiment")}
+            type="button"
+          >
+            + Experiment
+          </button>
+          <div className="sync-chip">
+            <span>{isRefreshing ? "Refreshing..." : "Live local state"}</span>
+            <strong>{dashboard.syncedAt ? formatDateTime(dashboard.syncedAt.toISOString()) : "Sync pending"}</strong>
+          </div>
         </div>
       </section>
 
@@ -724,7 +746,7 @@ export function HomePage() {
           )}
         </article>
 
-        <article className="summary-card">
+        <article className="summary-card home-secondary-card">
           <p className="section-kicker">Operational pulse</p>
           <ul className="metric-list">
             <li>
@@ -746,7 +768,7 @@ export function HomePage() {
           </ul>
         </article>
 
-        <article className="summary-card">
+        <article className={quickAction === "task" ? "summary-card home-create-card" : "summary-card home-create-card home-create-card--hidden"}>
           <p className="section-kicker">Create task</p>
           <form className="create-form" onSubmit={(event) => void handleCreateTask(event)}>
             <label>
@@ -947,8 +969,8 @@ export function HomePage() {
 
       {error ? <div className="banner banner--error">{error}</div> : null}
 
-      <section className="operations-grid" aria-label="Today operations">
-        <article className="panel panel--stack">
+      <section className="operations-grid home-operations-grid" aria-label="Today operations">
+        <article className={quickAction === "experiment" ? "panel panel--stack home-experiment-panel" : "panel panel--stack home-experiment-panel home-experiment-panel--hidden"}>
           <div className="panel-header panel-header--compact">
             <div>
               <p className="section-kicker">Experiments</p>
@@ -1059,7 +1081,7 @@ export function HomePage() {
           </form>
         </article>
 
-        <article className="panel panel--stack">
+        <article className="panel panel--stack home-hidden-panel">
           <div className="panel-header panel-header--compact">
             <div>
               <p className="section-kicker">Planned today</p>
@@ -1149,13 +1171,22 @@ export function HomePage() {
           </form>
         </article>
 
-        <article className="panel panel--stack">
+        <article className="panel panel--stack home-journal-panel">
           <div className="panel-header panel-header--compact">
             <div>
               <p className="section-kicker">Journal</p>
               <h2>{dashboard.journalDay}</h2>
             </div>
-            <span className="count-chip">{dashboard.journalEntries.length}</span>
+            <div className="journal-actions">
+              <span className="count-chip">{dashboard.journalEntries.length}</span>
+              <button
+                className="button button--ghost button--round"
+                onClick={() => setIsJournalComposerOpen((current) => !current)}
+                type="button"
+              >
+                + Note
+              </button>
+            </div>
           </div>
 
           {dashboard.journalEntries.length > 0 ? (
@@ -1171,7 +1202,10 @@ export function HomePage() {
             <p className="empty-state">No journal entries yet today.</p>
           )}
 
-          <form className="compact-form" onSubmit={(event) => void handleAppendJournalEntry(event)}>
+          <form
+            className={isJournalComposerOpen ? "compact-form" : "compact-form home-note-form--hidden"}
+            onSubmit={(event) => void handleAppendJournalEntry(event)}
+          >
             <label>
               <span>Quick note</span>
               <textarea
@@ -1188,7 +1222,7 @@ export function HomePage() {
         </article>
       </section>
 
-      <section className="panel panel--wide">
+      <section className="panel panel--wide home-hidden-panel">
         <div className="panel-header">
           <div>
             <p className="section-kicker">Global tasks</p>

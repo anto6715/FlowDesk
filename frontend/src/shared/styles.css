@@ -38,6 +38,61 @@ body {
   min-height: 100vh;
 }
 
+.app-layout {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.side-nav {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-height: 100vh;
+  padding: 1.25rem 1rem;
+  border-right: 1px solid rgba(30, 27, 24, 0.08);
+  background: rgba(255, 250, 241, 0.72);
+  backdrop-filter: blur(18px);
+}
+
+.side-nav__brand {
+  padding: 0.55rem 0.65rem;
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.side-nav__items {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.side-nav__item {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 0.9rem;
+  padding: 0.8rem 0.85rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  text-align: left;
+}
+
+.side-nav__item--active {
+  border-color: rgba(15, 109, 97, 0.18);
+  background: rgba(212, 237, 231, 0.88);
+  color: var(--accent);
+}
+
+.app-main {
+  min-width: 0;
+}
+
 .app-chrome {
   position: sticky;
   top: 0;
@@ -109,6 +164,10 @@ body {
   padding: 3rem 0 5rem;
 }
 
+.page-shell--home {
+  width: min(1040px, calc(100% - 3rem));
+}
+
 .hero {
   display: flex;
   justify-content: space-between;
@@ -149,6 +208,44 @@ body {
 .sync-chip strong {
   color: var(--text);
   font-size: 0.98rem;
+}
+
+.home-toolbar,
+.journal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.button--round {
+  border-radius: 999px;
+}
+
+.page-shell--home .summary-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.home-secondary-card,
+.home-create-card--hidden,
+.home-experiment-panel--hidden,
+.home-hidden-panel,
+.home-note-form--hidden {
+  display: none;
+}
+
+.home-create-card,
+.home-experiment-panel {
+  border-color: rgba(15, 109, 97, 0.14);
+}
+
+.home-operations-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.home-journal-panel {
+  min-height: 24rem;
 }
 
 .summary-grid {
@@ -952,6 +1049,35 @@ textarea {
 }
 
 @media (max-width: 640px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .side-nav {
+    position: sticky;
+    z-index: 20;
+    min-height: auto;
+    padding: 0.75rem;
+    border-right: 0;
+    border-bottom: 1px solid rgba(30, 27, 24, 0.08);
+  }
+
+  .side-nav__brand {
+    padding: 0 0.35rem;
+  }
+
+  .side-nav__items {
+    display: flex;
+    gap: 0.45rem;
+    overflow-x: auto;
+    padding-bottom: 0.1rem;
+  }
+
+  .side-nav__item {
+    width: auto;
+    white-space: nowrap;
+  }
+
   .page-shell {
     width: min(100% - 1.5rem, 1100px);
     padding: 2rem 0 3rem;

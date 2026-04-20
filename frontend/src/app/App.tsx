@@ -9,19 +9,16 @@ import { TaskDetailPage } from "../features/tasks/TaskDetailPage";
 
 type AppView = "today" | "tasks" | "task-detail" | "experiments" | "journal" | "calendar";
 
-const primaryViews: Array<{ value: AppView; label: string }> = [
+const appViews: Array<{ value: AppView; label: string }> = [
+  { value: "today", label: "Home" },
   { value: "tasks", label: "Tasks" },
-  { value: "journal", label: "Journal" }
-];
-
-const secondaryViews: Array<{ value: AppView; label: string }> = [
-  { value: "today", label: "Today cockpit" },
+  { value: "journal", label: "Journal" },
   { value: "experiments", label: "Experiments" },
   { value: "calendar", label: "Calendar" }
 ];
 
 export function App() {
-  const [activeView, setActiveView] = useState<AppView>("tasks");
+  const [activeView, setActiveView] = useState<AppView>("today");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   function openTaskDetail(taskId: string) {
@@ -30,18 +27,20 @@ export function App() {
   }
 
   return (
-    <>
-      <header className="app-chrome">
-        <nav className="app-nav" aria-label="Primary">
-          <div className="app-nav__primary">
-            {primaryViews.map((view) => {
+    <div className="app-layout">
+      <aside className="side-nav" aria-label="Primary">
+        <div className="side-nav__brand">
+          <span>Flow Desk</span>
+        </div>
+        <nav className="side-nav__items">
+          {appViews.map((view) => {
               const isActive =
                 activeView === view.value ||
                 (view.value === "tasks" && activeView === "task-detail");
 
               return (
                 <button
-                  className={isActive ? "nav-tab nav-tab--active" : "nav-tab"}
+                  className={isActive ? "side-nav__item side-nav__item--active" : "side-nav__item"}
                   key={view.value}
                   onClick={() => setActiveView(view.value)}
                   type="button"
@@ -50,42 +49,23 @@ export function App() {
                 </button>
               );
             })}
-          </div>
-          <label className="nav-more">
-            <span>More</span>
-            <select
-              onChange={(event) => {
-                if (event.target.value.length > 0) {
-                  setActiveView(event.target.value as AppView);
-                }
-              }}
-              value={
-                secondaryViews.some((view) => view.value === activeView) ? activeView : ""
-              }
-            >
-              <option value="">More views</option>
-              {secondaryViews.map((view) => (
-                <option key={view.value} value={view.value}>
-                  {view.label}
-                </option>
-              ))}
-            </select>
-          </label>
         </nav>
-      </header>
-      {activeView === "today" ? <HomePage /> : null}
-      {activeView === "tasks" ? <GlobalTasksPage onOpenTask={openTaskDetail} /> : null}
-      {activeView === "task-detail" && selectedTaskId !== null ? (
-        <TaskDetailPage
-          onBack={() => {
-            setActiveView("tasks");
-          }}
-          taskId={selectedTaskId}
-        />
-      ) : null}
-      {activeView === "experiments" ? <ExperimentsPage /> : null}
-      {activeView === "journal" ? <JournalPage /> : null}
-      {activeView === "calendar" ? <CalendarPage /> : null}
-    </>
+      </aside>
+      <div className="app-main">
+        {activeView === "today" ? <HomePage /> : null}
+        {activeView === "tasks" ? <GlobalTasksPage onOpenTask={openTaskDetail} /> : null}
+        {activeView === "task-detail" && selectedTaskId !== null ? (
+          <TaskDetailPage
+            onBack={() => {
+              setActiveView("tasks");
+            }}
+            taskId={selectedTaskId}
+          />
+        ) : null}
+        {activeView === "experiments" ? <ExperimentsPage /> : null}
+        {activeView === "journal" ? <JournalPage /> : null}
+        {activeView === "calendar" ? <CalendarPage /> : null}
+      </div>
+    </div>
   );
 }
