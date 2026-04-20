@@ -27,6 +27,12 @@ const initialState: CalendarState = {
   syncedAt: null
 };
 
+const calendarStartHour = 6;
+const calendarEndHour = 22;
+const calendarStartMinute = calendarStartHour * 60;
+const calendarEndMinute = calendarEndHour * 60;
+const calendarVisibleMinutes = calendarEndMinute - calendarStartMinute;
+
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -86,6 +92,17 @@ function formatTimeRange(startsAt: string, endsAt: string) {
   return `${formatter.format(new Date(startsAt))} - ${formatter.format(new Date(endsAt))}`;
 }
 
+function formatHourLabel(hour: number) {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric"
+  }).format(new Date(2024, 0, 1, hour));
+}
+
+function minutesFromLocalDayStart(dayKey: string, iso: string) {
+  const dayStart = new Date(`${dayKey}T00:00:00`);
+  return Math.round((new Date(iso).getTime() - dayStart.getTime()) / 60000);
+}
+
 export function CalendarPage() {
   const [state, setState] = useState<CalendarState>(initialState);
   const [calendarDay, setCalendarDay] = useState(localDateKey());
@@ -141,6 +158,28 @@ export function CalendarPage() {
   const openTasks = state.tasks.filter((task) => !["done", "archived"].includes(task.status));
   const selectedTaskId = scheduleForm.taskId || openTasks[0]?.id || "";
   const taskLookup = new Map(state.tasks.map((task) => [task.id, task]));
+  const hourRows = Array.from(
+    { length: calendarEndHour - calendarStartHour + 1 },
+    (_, index) => calendarStartHour + index
+  );
+  const visibleBlocks = state.scheduledBlocks.flatMap((block) => {
+    const rawStartMinute = minutesFromLocalDayStart(calendarDay, block.starts_at);
+    const rawEndMinute = minutesFromLocalDayStart(calendarDay, block.ends_at);
+    if (rawEndMinute <= calendarStartMinute || rawStartMinute >= calendarEndMinute) {
+      return [];
+    }
+
+    const startsAt = Math.max(rawStartMinute, calendarStartMinute);
+    const endsAt = Math.min(rawEndMinute, calendarEndMinute);
+    const top = ((startsAt - calendarStartMinute) / calendarVisibleMinutes) * 100;
+    const height = (Math.max(endsAt - startsAt, 30) / calendarVisibleMinutes) * 100;
+
+    return [{
+      block,
+      top,
+      height: Math.min(height, 100 - top)
+    }];
+  });
 
   async function handleCreateScheduledBlock(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -205,6 +244,38 @@ export function CalendarPage() {
           {error ? <div className="banner banner--error">{error}</div> : null}
           {isLoading ? <div className="banner">Loading calendar...</div> : null}
 
+          <div className="calendar-day-board">
+            <div className="calendar-time-column" aria-hidden="true">
+              {hourRows.map((hour) => (
+                <span key={hour}>{formatHourLabel(hour)}</span>
+              ))}
+            </div>
+            <div className="calendar-timeline">
+              {hourRows.slice(0, -1).map((hour) => (
+                <span className="calendar-hour-line" key={hour} />
+              ))}
+              {visibleBlocks.map(({ block, top, height }) => (
+                <article
+                  className="calendar-block"
+                  key={block.id}
+                  style={{
+                    top: `${top}%`,
+                    height: `${height}%`
+                  }}
+                >
+                  <strong>
+                    {block.title_override ?? taskLookup.get(block.task_id)?.title ?? "Untitled block"}
+                  </strong>
+                  <span>{taskLookup.get(block.task_id)?.title ?? "Unknown task"}</span>
+                  <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
+                </article>
+              ))}
+              {state.scheduledBlocks.length === 0 ? (
+                <p className="calendar-empty">No planned blocks for this day.</p>
+              ) : null}
+            </div>
+          </div>
+
           {state.scheduledBlocks.length > 0 ? (
             <ul className="entity-list entity-list--timeline">
               {state.scheduledBlocks.map((block) => (
@@ -219,9 +290,7 @@ export function CalendarPage() {
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="empty-state">No planned blocks for this day.</p>
-          )}
+          ) : null}
         </article>
 
         <article className="panel panel--stack">
@@ -257,7 +326,7 @@ export function CalendarPage() {
                 value={scheduleForm.titleOverride}
               />
             </label>
-            <div className="inline-grid">
+            <div className="schedule-time-grid">
               <label>
                 <span>Start</span>
                 <input

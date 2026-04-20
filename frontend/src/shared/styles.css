@@ -51,10 +51,18 @@ body {
 
 .app-nav {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
   flex-wrap: wrap;
   gap: 0.55rem;
   width: min(1240px, 100%);
   margin: 0 auto;
+}
+
+.app-nav__primary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
 }
 
 .nav-tab {
@@ -72,6 +80,27 @@ body {
   border-color: rgba(15, 109, 97, 0.2);
   background: rgba(212, 237, 231, 0.9);
   color: var(--accent);
+}
+
+.nav-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.nav-more span {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.nav-more select {
+  width: auto;
+  min-width: 11rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 999px;
 }
 
 .page-shell {
@@ -630,6 +659,19 @@ textarea {
   margin-top: 1rem;
 }
 
+.embedded-form-grid {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(30, 27, 24, 0.07);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.metadata-form {
+  margin-top: 1rem;
+}
+
 .mini-title {
   margin: 0;
   font-weight: 800;
@@ -666,6 +708,90 @@ textarea {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.8rem;
+}
+
+.inline-grid--metadata {
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+}
+
+.schedule-time-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.8rem;
+}
+
+.calendar-day-board {
+  display: grid;
+  grid-template-columns: 4.8rem minmax(0, 1fr);
+  gap: 0.75rem;
+  min-height: 46rem;
+}
+
+.calendar-time-column {
+  display: grid;
+  grid-template-rows: repeat(17, 1fr);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.calendar-time-column span {
+  transform: translateY(-0.45rem);
+}
+
+.calendar-timeline {
+  position: relative;
+  min-height: 46rem;
+  overflow: hidden;
+  border: 1px solid rgba(30, 27, 24, 0.08);
+  border-radius: 1rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.3));
+}
+
+.calendar-hour-line {
+  display: block;
+  height: calc(100% / 16);
+  border-top: 1px solid rgba(30, 27, 24, 0.07);
+}
+
+.calendar-block {
+  position: absolute;
+  right: 0.75rem;
+  left: 0.75rem;
+  min-height: 3.2rem;
+  overflow: hidden;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(15, 109, 97, 0.18);
+  border-radius: 1rem;
+  background: rgba(212, 237, 231, 0.92);
+  color: var(--text);
+  box-shadow: 0 14px 34px rgba(15, 109, 97, 0.14);
+}
+
+.calendar-block strong,
+.calendar-block span,
+.calendar-block time {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-block span,
+.calendar-block time {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.calendar-empty {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .empty-state {
@@ -831,9 +957,38 @@ textarea {
     padding: 2rem 0 3rem;
   }
 
+  .app-nav {
+    align-items: stretch;
+  }
+
+  .app-nav__primary,
+  .nav-more {
+    width: 100%;
+  }
+
+  .nav-more select {
+    flex: 1;
+    min-width: 0;
+  }
+
   .hero {
     align-items: start;
     flex-direction: column;
+  }
+
+  .calendar-day-board {
+    grid-template-columns: 3.6rem minmax(0, 1fr);
+    min-height: 36rem;
+  }
+
+  .calendar-timeline {
+    min-height: 36rem;
+  }
+
+  .calendar-block {
+    right: 0.45rem;
+    left: 0.45rem;
+    padding: 0.65rem 0.7rem;
   }
 }
 

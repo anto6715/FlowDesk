@@ -26,16 +26,18 @@ Implemented so far:
 
 - SQLite/Alembic persistence baseline
 - task creation, start, pause, switch, waiting, and completion flows
-- macro-activity and GitHub reference APIs
+- task metadata update APIs
+- macro-activity and GitHub reference APIs, including GitHub reference metadata updates
 - experiment registry APIs with state-transition history
 - scheduled-block planning APIs with move/status history
 - daily journal, task note, and experiment note APIs
 - task work-session history read API
 - Today cockpit frontend with task timing, experiments, planned blocks, and journal entries
-- richer task creation with macro-activity and GitHub reference selection/creation
-- app-level navigation with a dense Global Tasks view
+- task creation with inline macro-activity and GitHub reference selection/creation
+- simplified Tasks/Journal-first navigation with secondary access to Today, Experiments, and Calendar
 - dedicated Experiments, Journal, and Calendar views
-- task detail workspace with references, sessions, linked experiments, planned blocks, and notes
+- task detail workspace with metadata editing, references, sessions, linked experiments, planned blocks, and notes
+- calendar day timeline with a non-overlapping schedule form
 - backend API tests against temporary SQLite databases
 - verified frontend production build
 
@@ -94,10 +96,12 @@ npm run build
 
 Near-term implementation order:
 
-1. Add report read models and reporting UI.
-2. Add backup/export/import baseline.
-3. Add experiment detail notes/artifacts UI.
-4. Replace local view switching with URL-backed routing when navigation state needs deep links.
+1. User-test the updated task creation, task detail metadata editing, and calendar workflows.
+2. Patch UI feedback from that test pass, especially spacing, navigation, and form ergonomics.
+3. Add report read models and reporting UI.
+4. Add backup/export/import baseline.
+5. Add experiment detail notes/artifacts UI.
+6. Replace local view switching with URL-backed routing when navigation state needs deep links.
 
 ## Design references
 

@@ -29,13 +29,15 @@
 - Dedicated operational views committed in `7cbe422`
 - Task work-session read API committed in `7a10795`
 - Task detail workspace UI committed in `a005681`
+- Task and GitHub reference metadata update APIs committed in `6980037`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
   - task timing routes
   - task work-session history read route
+  - task metadata update route
   - macro-activity routes
-  - GitHub reference routes
+  - GitHub reference routes, including cached metadata updates
   - experiment registry routes with state-transition history
   - scheduled-block planning routes with move/status history
   - daily journal, task note, and experiment note routes
@@ -46,10 +48,11 @@
   - local API client coverage for experiments, scheduled blocks, and journal entries
   - Today panels for running/stalled experiments, planned blocks, and daily journal entries
   - quick actions to register experiments, schedule blocks, and append journal entries
-  - richer task creation with macro-activity and GitHub reference selection/creation
-  - app-level navigation with a dense `Global Tasks` view
+  - task creation with inline macro-activity and GitHub reference selection/creation
+  - Tasks/Journal-first navigation with secondary access to Today, Experiments, and Calendar
   - dedicated `Experiments`, `Journal`, and `Calendar` views
-  - task detail workspace with references, sessions, linked experiments, planned blocks, and notes
+  - task detail workspace with metadata editing, references, sessions, linked experiments, planned blocks, and notes
+  - calendar day timeline with a non-overlapping schedule form
   - Vite proxy to the backend `/api`
   - verified production build with `npm run build`
 
@@ -87,10 +90,12 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. Add report read models and reporting UI
-2. Add backup/export/import baseline
-3. Add experiment detail notes/artifacts UI
-4. Replace local view switching with URL-backed routing when navigation state needs deep links
+1. User-test the updated task creation, task detail metadata editing, and calendar workflows
+2. Patch UI feedback from that test pass, especially spacing, navigation, and form ergonomics
+3. Add report read models and reporting UI
+4. Add backup/export/import baseline
+5. Add experiment detail notes/artifacts UI
+6. Replace local view switching with URL-backed routing when navigation state needs deep links
 
 ## Commit guidance
 

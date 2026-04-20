@@ -77,6 +77,14 @@ export interface CreateTaskInput {
   github_reference_id?: string | null;
 }
 
+export interface UpdateTaskInput {
+  title?: string;
+  description?: string | null;
+  priority?: TaskPriority;
+  macro_activity_id?: string | null;
+  github_reference_id?: string | null;
+}
+
 export interface MacroActivity {
   id: string;
   name: string;
@@ -110,6 +118,15 @@ export interface CreateGitHubReferenceInput {
   repository_full_name: string;
   issue_number: number;
   issue_url: string;
+  cached_title?: string | null;
+  cached_state?: string | null;
+  cached_labels?: string[] | null;
+}
+
+export interface UpdateGitHubReferenceInput {
+  repository_full_name?: string;
+  issue_number?: number;
+  issue_url?: string;
   cached_title?: string | null;
   cached_state?: string | null;
   cached_labels?: string[] | null;
@@ -250,6 +267,13 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
   });
 }
 
+export async function updateTask(taskId: string, input: UpdateTaskInput): Promise<Task> {
+  return request<Task>(`/tasks/${taskId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+}
+
 export async function listMacroActivities(): Promise<MacroActivity[]> {
   return request<MacroActivity[]>("/macro-activities");
 }
@@ -272,6 +296,16 @@ export async function createGitHubReference(
 ): Promise<GitHubReference> {
   return request<GitHubReference>("/github-references", {
     method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function updateGitHubReference(
+  referenceId: string,
+  input: UpdateGitHubReferenceInput
+): Promise<GitHubReference> {
+  return request<GitHubReference>(`/github-references/${referenceId}`, {
+    method: "PATCH",
     body: JSON.stringify(input)
   });
 }

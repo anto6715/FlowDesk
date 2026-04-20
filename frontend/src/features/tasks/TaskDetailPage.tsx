@@ -2,19 +2,22 @@ import { startTransition, type FormEvent, useEffect, useState } from "react";
 
 import {
   addTaskNote,
-  listExperiments,
   listGitHubReferences,
   listMacroActivities,
+  listExperiments,
   listScheduledBlocks,
   listTaskNotes,
   listTasks,
   listTaskWorkSessions,
+  updateGitHubReference,
+  updateTask,
   type Experiment,
   type GitHubReference,
   type MacroActivity,
   type Note,
   type ScheduledBlock,
   type Task,
+  type TaskPriority,
   type WorkSession
 } from "../../shared/api";
 
@@ -24,6 +27,9 @@ interface TaskDetailPageProps {
 }
 
 interface TaskDetailState {
+  tasks: Task[];
+  macroActivities: MacroActivity[];
+  githubReferences: GitHubReference[];
   task: Task | null;
   macroActivity: MacroActivity | null;
   githubReference: GitHubReference | null;
@@ -35,6 +41,9 @@ interface TaskDetailState {
 }
 
 const initialState: TaskDetailState = {
+  tasks: [],
+  macroActivities: [],
+  githubReferences: [],
   task: null,
   macroActivity: null,
   githubReference: null,
@@ -44,6 +53,37 @@ const initialState: TaskDetailState = {
   notes: [],
   syncedAt: null
 };
+
+interface MetadataFormState {
+  title: string;
+  description: string;
+  priority: TaskPriority;
+  macroActivityId: string;
+  githubReferenceId: string;
+  githubRepositoryFullName: string;
+  githubIssueNumber: string;
+  githubIssueUrl: string;
+  githubCachedTitle: string;
+}
+
+const initialMetadataForm: MetadataFormState = {
+  title: "",
+  description: "",
+  priority: "normal",
+  macroActivityId: "",
+  githubReferenceId: "",
+  githubRepositoryFullName: "",
+  githubIssueNumber: "",
+  githubIssueUrl: "",
+  githubCachedTitle: ""
+};
+
+const priorityOptions: Array<{ value: TaskPriority; label: string }> = [
+  { value: "low", label: "Low" },
+  { value: "normal", label: "Normal" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" }
+];
 
 function formatDateTime(iso: string | null) {
   if (iso === null) {
@@ -80,6 +120,24 @@ function formatGitHubReference(reference: GitHubReference) {
   return `${reference.repository_full_name}#${reference.issue_number}${title}`;
 }
 
+function buildMetadataForm(task: Task | null, githubReference: GitHubReference | null) {
+  if (task === null) {
+    return initialMetadataForm;
+  }
+
+  return {
+    title: task.title,
+    description: task.description ?? "",
+    priority: task.priority,
+    macroActivityId: task.macro_activity_id ?? "",
+    githubReferenceId: task.github_reference_id ?? "",
+    githubRepositoryFullName: githubReference?.repository_full_name ?? "",
+    githubIssueNumber: githubReference ? String(githubReference.issue_number) : "",
+    githubIssueUrl: githubReference?.issue_url ?? "",
+    githubCachedTitle: githubReference?.cached_title ?? ""
+  };
+}
+
 function formatTimeRange(startsAt: string, endsAt: string) {
   const formatter = new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
@@ -91,7 +149,10 @@ function formatTimeRange(startsAt: string, endsAt: string) {
 export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
   const [state, setState] = useState<TaskDetailState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSavingMetadata, setIsSavingMetadata] = useState(false);
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [metadataForm, setMetadataForm] =
+    useState<MetadataFormState>(initialMetadataForm);
   const [noteContent, setNoteContent] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -127,6 +188,9 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
       startTransition(() => {
         setState({
+          tasks,
+          macroActivities,
+          githubReferences,
           task,
           macroActivity,
           githubReference,
@@ -136,6 +200,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
           notes,
           syncedAt: new Date()
         });
+        setMetadataForm(buildMetadataForm(task, githubReference));
         setError(task === null ? "Task was not found." : null);
       });
     } catch (loadError) {
@@ -148,6 +213,84 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
   useEffect(() => {
     void loadTaskDetail();
   }, [taskId]);
+
+  function handleGitHubReferenceSelection(referenceId: string) {
+    const reference =
+      referenceId.length > 0
+        ? state.githubReferences.find((item) => item.id === referenceId) ?? null
+        : null;
+
+    setMetadataForm((current) => ({
+      ...current,
+      githubReferenceId: referenceId,
+      githubRepositoryFullName: reference?.repository_full_name ?? "",
+      githubIssueNumber: reference ? String(reference.issue_number) : "",
+      githubIssueUrl: reference?.issue_url ?? "",
+      githubCachedTitle: reference?.cached_title ?? ""
+    }));
+  }
+
+  async function handleSaveMetadata(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (state.task === null) {
+      return;
+    }
+    if (metadataForm.title.trim().length === 0) {
+      setError("Task title is required.");
+      return;
+    }
+
+    const githubReferenceId = metadataForm.githubReferenceId || null;
+    setIsSavingMetadata(true);
+    try {
+      if (githubReferenceId !== null) {
+        const selectedReference =
+          state.githubReferences.find((reference) => reference.id === githubReferenceId) ?? null;
+        const issueNumber = Number.parseInt(metadataForm.githubIssueNumber, 10);
+
+        if (metadataForm.githubRepositoryFullName.trim().length === 0) {
+          setError("GitHub repository is required.");
+          return;
+        }
+        if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
+          setError("GitHub issue number must be a positive integer.");
+          return;
+        }
+        if (metadataForm.githubIssueUrl.trim().length === 0) {
+          setError("GitHub issue URL is required.");
+          return;
+        }
+
+        if (
+          selectedReference === null ||
+          selectedReference.repository_full_name !== metadataForm.githubRepositoryFullName.trim() ||
+          selectedReference.issue_number !== issueNumber ||
+          selectedReference.issue_url !== metadataForm.githubIssueUrl.trim() ||
+          (selectedReference.cached_title ?? "") !== metadataForm.githubCachedTitle.trim()
+        ) {
+          await updateGitHubReference(githubReferenceId, {
+            repository_full_name: metadataForm.githubRepositoryFullName.trim(),
+            issue_number: issueNumber,
+            issue_url: metadataForm.githubIssueUrl.trim(),
+            cached_title: metadataForm.githubCachedTitle.trim() || null
+          });
+        }
+      }
+
+      await updateTask(state.task.id, {
+        title: metadataForm.title.trim(),
+        description: metadataForm.description.trim() || null,
+        priority: metadataForm.priority,
+        macro_activity_id: metadataForm.macroActivityId || null,
+        github_reference_id: githubReferenceId
+      });
+      await loadTaskDetail();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Failed to update task.");
+    } finally {
+      setIsSavingMetadata(false);
+    }
+  }
 
   async function handleAddNote(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -169,6 +312,21 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
   }
 
   const task = state.task;
+  const unavailableGithubReferenceIds = new Set(
+    state.tasks.flatMap((item) =>
+      item.id !== task?.id && item.github_reference_id ? [item.github_reference_id] : []
+    )
+  );
+  const availableGithubReferences = state.githubReferences.filter(
+    (reference) =>
+      !unavailableGithubReferenceIds.has(reference.id) ||
+      reference.id === metadataForm.githubReferenceId
+  );
+  const selectedGithubReference =
+    metadataForm.githubReferenceId.length > 0
+      ? state.githubReferences.find((reference) => reference.id === metadataForm.githubReferenceId) ??
+        null
+      : null;
 
   return (
     <main className="page-shell">
@@ -233,6 +391,140 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                   )}
                 </div>
               </div>
+              <form className="compact-form metadata-form" onSubmit={(event) => void handleSaveMetadata(event)}>
+                <label>
+                  <span>Title</span>
+                  <input
+                    onChange={(event) =>
+                      setMetadataForm((current) => ({ ...current, title: event.target.value }))
+                    }
+                    value={metadataForm.title}
+                  />
+                </label>
+                <label>
+                  <span>Description</span>
+                  <textarea
+                    onChange={(event) =>
+                      setMetadataForm((current) => ({
+                        ...current,
+                        description: event.target.value
+                      }))
+                    }
+                    rows={4}
+                    value={metadataForm.description}
+                  />
+                </label>
+                <div className="inline-grid inline-grid--metadata">
+                  <label>
+                    <span>Priority</span>
+                    <select
+                      onChange={(event) =>
+                        setMetadataForm((current) => ({
+                          ...current,
+                          priority: event.target.value as TaskPriority
+                        }))
+                      }
+                      value={metadataForm.priority}
+                    >
+                      {priorityOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Macro-activity</span>
+                    <select
+                      onChange={(event) =>
+                        setMetadataForm((current) => ({
+                          ...current,
+                          macroActivityId: event.target.value
+                        }))
+                      }
+                      value={metadataForm.macroActivityId}
+                    >
+                      <option value="">No macro-activity</option>
+                      {state.macroActivities.map((macroActivity) => (
+                        <option key={macroActivity.id} value={macroActivity.id}>
+                          {macroActivity.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label>
+                  <span>GitHub reference</span>
+                  <select
+                    onChange={(event) => handleGitHubReferenceSelection(event.target.value)}
+                    value={metadataForm.githubReferenceId}
+                  >
+                    <option value="">No GitHub reference</option>
+                    {availableGithubReferences.map((reference) => (
+                      <option key={reference.id} value={reference.id}>
+                        {formatGitHubReference(reference)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {selectedGithubReference ? (
+                  <div className="embedded-form-grid">
+                    <label>
+                      <span>Repository</span>
+                      <input
+                        onChange={(event) =>
+                          setMetadataForm((current) => ({
+                            ...current,
+                            githubRepositoryFullName: event.target.value
+                          }))
+                        }
+                        value={metadataForm.githubRepositoryFullName}
+                      />
+                    </label>
+                    <label>
+                      <span>Issue</span>
+                      <input
+                        min="1"
+                        onChange={(event) =>
+                          setMetadataForm((current) => ({
+                            ...current,
+                            githubIssueNumber: event.target.value
+                          }))
+                        }
+                        type="number"
+                        value={metadataForm.githubIssueNumber}
+                      />
+                    </label>
+                    <label>
+                      <span>Issue URL</span>
+                      <input
+                        onChange={(event) =>
+                          setMetadataForm((current) => ({
+                            ...current,
+                            githubIssueUrl: event.target.value
+                          }))
+                        }
+                        value={metadataForm.githubIssueUrl}
+                      />
+                    </label>
+                    <label>
+                      <span>Title</span>
+                      <input
+                        onChange={(event) =>
+                          setMetadataForm((current) => ({
+                            ...current,
+                            githubCachedTitle: event.target.value
+                          }))
+                        }
+                        value={metadataForm.githubCachedTitle}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+                <button className="button button--accent" disabled={isSavingMetadata} type="submit">
+                  {isSavingMetadata ? "Saving..." : "Save metadata"}
+                </button>
+              </form>
             </article>
           </section>
 

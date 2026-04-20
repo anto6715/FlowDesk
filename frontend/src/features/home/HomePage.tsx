@@ -202,6 +202,9 @@ interface GitHubReferenceFormState {
   cachedTitle: string;
 }
 
+type CreateMacroActivityMode = "none" | "existing" | "new";
+type CreateGitHubReferenceMode = "none" | "existing" | "new";
+
 export function HomePage() {
   const [dashboard, setDashboard] = useState<DashboardState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
@@ -210,15 +213,17 @@ export function HomePage() {
   const [isRegisteringExperiment, setIsRegisteringExperiment] = useState(false);
   const [isSchedulingBlock, setIsSchedulingBlock] = useState(false);
   const [isAppendingJournal, setIsAppendingJournal] = useState(false);
-  const [isCreatingMacroActivity, setIsCreatingMacroActivity] = useState(false);
-  const [isCreatingGitHubReference, setIsCreatingGitHubReference] = useState(false);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [createTitle, setCreateTitle] = useState("");
   const [createDescription, setCreateDescription] = useState("");
   const [createPriority, setCreatePriority] = useState<TaskPriority>("normal");
+  const [createMacroActivityMode, setCreateMacroActivityMode] =
+    useState<CreateMacroActivityMode>("none");
   const [createMacroActivityId, setCreateMacroActivityId] = useState("");
+  const [createGitHubReferenceMode, setCreateGitHubReferenceMode] =
+    useState<CreateGitHubReferenceMode>("none");
   const [createGitHubReferenceId, setCreateGitHubReferenceId] = useState("");
   const [macroActivityForm, setMacroActivityForm] = useState<MacroActivityFormState>({
     name: "",
@@ -340,79 +345,77 @@ export function HomePage() {
 
     setIsCreating(true);
     try {
+      let macroActivityId: string | null = null;
+      if (createMacroActivityMode === "existing") {
+        if (createMacroActivityId.length === 0) {
+          setError("Pick a macro-activity or choose a different macro mode.");
+          return;
+        }
+        macroActivityId = createMacroActivityId;
+      }
+      if (createMacroActivityMode === "new") {
+        if (macroActivityForm.name.trim().length === 0) {
+          setError("Macro-activity name is required.");
+          return;
+        }
+        const macroActivity = await createMacroActivity({
+          name: macroActivityForm.name.trim(),
+          description: macroActivityForm.description.trim() || undefined,
+          color_hex: macroActivityForm.colorHex
+        });
+        macroActivityId = macroActivity.id;
+      }
+
+      let githubReferenceId: string | null = null;
+      if (createGitHubReferenceMode === "existing") {
+        if (createGitHubReferenceId.length === 0) {
+          setError("Pick a GitHub reference or choose a different GitHub mode.");
+          return;
+        }
+        githubReferenceId = createGitHubReferenceId;
+      }
+      if (createGitHubReferenceMode === "new") {
+        const repositoryFullName = githubReferenceForm.repositoryFullName.trim();
+        const issueNumber = Number.parseInt(githubReferenceForm.issueNumber, 10);
+
+        if (repositoryFullName.length === 0) {
+          setError("GitHub repository is required.");
+          return;
+        }
+        if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
+          setError("GitHub issue number must be a positive integer.");
+          return;
+        }
+
+        const reference = await createGitHubReference({
+          repository_full_name: repositoryFullName,
+          issue_number: issueNumber,
+          issue_url:
+            githubReferenceForm.issueUrl.trim() ||
+            inferGitHubIssueUrl(repositoryFullName, issueNumber),
+          cached_title: githubReferenceForm.cachedTitle.trim() || undefined
+        });
+        githubReferenceId = reference.id;
+      }
+
       await createTask({
         title: createTitle.trim(),
         description: createDescription.trim() || undefined,
         priority: createPriority,
-        macro_activity_id: createMacroActivityId || null,
-        github_reference_id: createGitHubReferenceId || null
+        macro_activity_id: macroActivityId,
+        github_reference_id: githubReferenceId
       });
       setCreateTitle("");
       setCreateDescription("");
       setCreatePriority("normal");
+      setCreateMacroActivityMode("none");
+      setCreateMacroActivityId("");
       setCreateGitHubReferenceId("");
-      await loadDashboard({ background: true });
-    } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Failed to create task.");
-    } finally {
-      setIsCreating(false);
-    }
-  }
-
-  async function handleCreateMacroActivity(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (macroActivityForm.name.trim().length === 0) {
-      setError("Macro-activity name is required.");
-      return;
-    }
-
-    setIsCreatingMacroActivity(true);
-    try {
-      const macroActivity = await createMacroActivity({
-        name: macroActivityForm.name.trim(),
-        description: macroActivityForm.description.trim() || undefined,
-        color_hex: macroActivityForm.colorHex
-      });
+      setCreateGitHubReferenceMode("none");
       setMacroActivityForm({
         name: "",
         description: "",
         colorHex: macroActivityForm.colorHex
-      });
-      setCreateMacroActivityId(macroActivity.id);
-      await loadDashboard({ background: true });
-    } catch (macroActivityError) {
-      setError(
-        macroActivityError instanceof Error
-          ? macroActivityError.message
-          : "Failed to create macro-activity."
-      );
-    } finally {
-      setIsCreatingMacroActivity(false);
-    }
-  }
-
-  async function handleCreateGitHubReference(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const repositoryFullName = githubReferenceForm.repositoryFullName.trim();
-    const issueNumber = Number.parseInt(githubReferenceForm.issueNumber, 10);
-
-    if (repositoryFullName.length === 0) {
-      setError("GitHub repository is required.");
-      return;
-    }
-    if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
-      setError("GitHub issue number must be a positive integer.");
-      return;
-    }
-
-    setIsCreatingGitHubReference(true);
-    try {
-      const reference = await createGitHubReference({
-        repository_full_name: repositoryFullName,
-        issue_number: issueNumber,
-        issue_url:
-          githubReferenceForm.issueUrl.trim() || inferGitHubIssueUrl(repositoryFullName, issueNumber),
-        cached_title: githubReferenceForm.cachedTitle.trim() || undefined
       });
       setGitHubReferenceForm({
         repositoryFullName: "",
@@ -420,16 +423,11 @@ export function HomePage() {
         issueUrl: "",
         cachedTitle: ""
       });
-      setCreateGitHubReferenceId(reference.id);
       await loadDashboard({ background: true });
-    } catch (githubReferenceError) {
-      setError(
-        githubReferenceError instanceof Error
-          ? githubReferenceError.message
-          : "Failed to create GitHub reference."
-      );
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : "Failed to create task.");
     } finally {
-      setIsCreatingGitHubReference(false);
+      setIsCreating(false);
     }
   }
 
@@ -784,108 +782,119 @@ export function HomePage() {
             <label>
               <span>Macro-activity</span>
               <select
-                onChange={(event) => setCreateMacroActivityId(event.target.value)}
-                value={createMacroActivityId}
+                onChange={(event) =>
+                  setCreateMacroActivityMode(event.target.value as CreateMacroActivityMode)
+                }
+                value={createMacroActivityMode}
               >
-                <option value="">No macro-activity</option>
-                {dashboard.macroActivities.map((macroActivity) => (
-                  <option key={macroActivity.id} value={macroActivity.id}>
-                    {macroActivity.name}
-                  </option>
-                ))}
+                <option value="none">No macro-activity</option>
+                <option value="existing">Use existing</option>
+                <option value="new">Create new</option>
               </select>
             </label>
+            {createMacroActivityMode === "existing" ? (
+              <label>
+                <span>Existing macro-activity</span>
+                <select
+                  onChange={(event) => setCreateMacroActivityId(event.target.value)}
+                  value={createMacroActivityId}
+                >
+                  <option value="">Pick macro-activity</option>
+                  {dashboard.macroActivities.map((macroActivity) => (
+                    <option key={macroActivity.id} value={macroActivity.id}>
+                      {macroActivity.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {createMacroActivityMode === "new" ? (
+              <div className="embedded-form-grid">
+                <label>
+                  <span>New macro name</span>
+                  <input
+                    onChange={(event) =>
+                      setMacroActivityForm((current) => ({
+                        ...current,
+                        name: event.target.value
+                      }))
+                    }
+                    placeholder="Coupled model runs"
+                    value={macroActivityForm.name}
+                  />
+                </label>
+                <label>
+                  <span>Description</span>
+                  <input
+                    onChange={(event) =>
+                      setMacroActivityForm((current) => ({
+                        ...current,
+                        description: event.target.value
+                      }))
+                    }
+                    placeholder="Optional scope note"
+                    value={macroActivityForm.description}
+                  />
+                </label>
+                <label>
+                  <span>Color</span>
+                  <input
+                    onChange={(event) =>
+                      setMacroActivityForm((current) => ({
+                        ...current,
+                        colorHex: event.target.value
+                      }))
+                    }
+                    type="color"
+                    value={macroActivityForm.colorHex}
+                  />
+                </label>
+              </div>
+            ) : null}
             <label>
               <span>GitHub reference</span>
               <select
-                onChange={(event) => setCreateGitHubReferenceId(event.target.value)}
-                value={createGitHubReferenceId}
+                onChange={(event) =>
+                  setCreateGitHubReferenceMode(event.target.value as CreateGitHubReferenceMode)
+                }
+                value={createGitHubReferenceMode}
               >
-                <option value="">No GitHub reference</option>
-                {availableGithubReferences.map((reference) => (
-                  <option key={reference.id} value={reference.id}>
-                    {formatGitHubReference(reference)}
-                  </option>
-                ))}
+                <option value="none">No GitHub reference</option>
+                <option value="existing">Use existing</option>
+                <option value="new">Create new</option>
               </select>
             </label>
-            <button className="button button--accent" disabled={isCreating} type="submit">
-              {isCreating ? "Creating..." : "Create task"}
-            </button>
-          </form>
-          <div className="reference-tools">
-            <form
-              className="compact-form"
-              onSubmit={(event) => void handleCreateMacroActivity(event)}
-            >
-              <p className="mini-title">New macro-activity</p>
+            {createGitHubReferenceMode === "existing" ? (
               <label>
-                <span>Name</span>
-                <input
-                  onChange={(event) =>
-                    setMacroActivityForm((current) => ({
-                      ...current,
-                      name: event.target.value
-                    }))
-                  }
-                  placeholder="Coupled model runs"
-                  value={macroActivityForm.name}
-                />
+                <span>Existing GitHub reference</span>
+                <select
+                  onChange={(event) => setCreateGitHubReferenceId(event.target.value)}
+                  value={createGitHubReferenceId}
+                >
+                  <option value="">Pick GitHub reference</option>
+                  {availableGithubReferences.map((reference) => (
+                    <option key={reference.id} value={reference.id}>
+                      {formatGitHubReference(reference)}
+                    </option>
+                  ))}
+                </select>
               </label>
-              <label>
-                <span>Description</span>
-                <input
-                  onChange={(event) =>
-                    setMacroActivityForm((current) => ({
-                      ...current,
-                      description: event.target.value
-                    }))
-                  }
-                  placeholder="Optional scope note"
-                  value={macroActivityForm.description}
-                />
-              </label>
-              <label>
-                <span>Color</span>
-                <input
-                  onChange={(event) =>
-                    setMacroActivityForm((current) => ({
-                      ...current,
-                      colorHex: event.target.value
-                    }))
-                  }
-                  type="color"
-                  value={macroActivityForm.colorHex}
-                />
-              </label>
-              <button
-                className="button button--ghost"
-                disabled={isCreatingMacroActivity}
-                type="submit"
-              >
-                {isCreatingMacroActivity ? "Adding..." : "Add macro"}
-              </button>
-            </form>
-
-            <form
-              className="compact-form"
-              onSubmit={(event) => void handleCreateGitHubReference(event)}
-            >
-              <p className="mini-title">New GitHub reference</p>
-              <label>
-                <span>Repository</span>
-                <input
-                  onChange={(event) =>
-                    setGitHubReferenceForm((current) => ({
-                      ...current,
-                      repositoryFullName: event.target.value
-                    }))
-                  }
-                  placeholder="org/project"
-                  value={githubReferenceForm.repositoryFullName}
-                />
-              </label>
-              <div className="inline-grid">
+            ) : null}
+            {createGitHubReferenceMode === "new" ? (
+              <div className="embedded-form-grid">
+                <label>
+                  <span>Repository</span>
+                  <input
+                    onChange={(event) =>
+                      setGitHubReferenceForm((current) => ({
+                        ...current,
+                        repositoryFullName: event.target.value
+                      }))
+                    }
+                    placeholder="org/project"
+                    value={githubReferenceForm.repositoryFullName}
+                  />
+                </label>
                 <label>
                   <span>Issue</span>
                   <input
@@ -914,29 +923,25 @@ export function HomePage() {
                     value={githubReferenceForm.cachedTitle}
                   />
                 </label>
+                <label>
+                  <span>Issue URL</span>
+                  <input
+                    onChange={(event) =>
+                      setGitHubReferenceForm((current) => ({
+                        ...current,
+                        issueUrl: event.target.value
+                      }))
+                    }
+                    placeholder="Auto-filled if left blank"
+                    value={githubReferenceForm.issueUrl}
+                  />
+                </label>
               </div>
-              <label>
-                <span>Issue URL</span>
-                <input
-                  onChange={(event) =>
-                    setGitHubReferenceForm((current) => ({
-                      ...current,
-                      issueUrl: event.target.value
-                    }))
-                  }
-                  placeholder="Auto-filled if left blank"
-                  value={githubReferenceForm.issueUrl}
-                />
-              </label>
-              <button
-                className="button button--ghost"
-                disabled={isCreatingGitHubReference}
-                type="submit"
-              >
-                {isCreatingGitHubReference ? "Adding..." : "Add GitHub ref"}
-              </button>
-            </form>
-          </div>
+            ) : null}
+            <button className="button button--accent" disabled={isCreating} type="submit">
+              {isCreating ? "Creating..." : "Create task"}
+            </button>
+          </form>
         </article>
       </section>
 
@@ -1112,7 +1117,7 @@ export function HomePage() {
                 value={scheduleForm.titleOverride}
               />
             </label>
-            <div className="inline-grid">
+            <div className="schedule-time-grid">
               <label>
                 <span>Start</span>
                 <input
