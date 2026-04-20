@@ -8,12 +8,22 @@ import {
 } from "react";
 
 import {
+  appendJournalEntry,
+  createScheduledBlock,
   createTask,
   getActiveTask,
+  listExperiments,
+  listJournalEntries,
+  listScheduledBlocks,
   listTasks,
   pauseTask,
+  registerExperiment,
   startTask,
   switchTask,
+  type Experiment,
+  type ExperimentStatus,
+  type Note,
+  type ScheduledBlock,
   type Task,
   type TaskPriority,
   type WaitingReason
@@ -36,10 +46,22 @@ const priorityOptions: Array<{ value: TaskPriority; label: string }> = [
   { value: "urgent", label: "Urgent" }
 ];
 
+const experimentStatusOptions: Array<{ value: ExperimentStatus; label: string }> = [
+  { value: "running", label: "Running" },
+  { value: "queued", label: "Queued" },
+  { value: "draft", label: "Draft" },
+  { value: "stalled", label: "Stalled" }
+];
+
 interface DashboardState {
   tasks: Task[];
   activeTask: Task | null;
   activeSessionStartedAt: string | null;
+  runningExperiments: Experiment[];
+  stalledExperiments: Experiment[];
+  scheduledBlocks: ScheduledBlock[];
+  journalEntries: Note[];
+  journalDay: string;
   syncedAt: Date | null;
 }
 
@@ -47,6 +69,11 @@ const initialState: DashboardState = {
   tasks: [],
   activeTask: null,
   activeSessionStartedAt: null,
+  runningExperiments: [],
+  stalledExperiments: [],
+  scheduledBlocks: [],
+  journalEntries: [],
+  journalDay: localDateKey(),
   syncedAt: null
 };
 
@@ -63,6 +90,14 @@ function formatDateTime(iso: string | null) {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(iso));
+}
+
+function formatTimeRange(startsAt: string, endsAt: string) {
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    timeStyle: "short"
+  });
+
+  return `${formatter.format(new Date(startsAt))} - ${formatter.format(new Date(endsAt))}`;
 }
 
 function formatElapsed(startedAt: string | null) {
@@ -89,11 +124,60 @@ function waitingLabel(value: WaitingReason | null) {
   return value.replace(/_/g, " ");
 }
 
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function localDayBounds(dayKey: string) {
+  const startsAt = new Date(`${dayKey}T00:00:00`);
+  const endsAt = new Date(startsAt);
+  endsAt.setDate(startsAt.getDate() + 1);
+
+  return {
+    startsAt: startsAt.toISOString(),
+    endsAt: endsAt.toISOString()
+  };
+}
+
+function toDateTimeLocalValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function getDefaultScheduleWindow() {
+  const startsAt = new Date();
+  startsAt.setMinutes(startsAt.getMinutes() < 30 ? 30 : 60, 0, 0);
+  const endsAt = new Date(startsAt.getTime() + 60 * 60 * 1000);
+
+  return {
+    startsAt: toDateTimeLocalValue(startsAt),
+    endsAt: toDateTimeLocalValue(endsAt)
+  };
+}
+
+interface ScheduleFormState {
+  taskId: string;
+  titleOverride: string;
+  startsAt: string;
+  endsAt: string;
+}
+
 export function HomePage() {
   const [dashboard, setDashboard] = useState<DashboardState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isRegisteringExperiment, setIsRegisteringExperiment] = useState(false);
+  const [isSchedulingBlock, setIsSchedulingBlock] = useState(false);
+  const [isAppendingJournal, setIsAppendingJournal] = useState(false);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -101,6 +185,20 @@ export function HomePage() {
   const [createDescription, setCreateDescription] = useState("");
   const [createPriority, setCreatePriority] = useState<TaskPriority>("normal");
   const [waitingReason, setWaitingReason] = useState<WaitingReason>("experiment_running");
+  const [experimentTaskId, setExperimentTaskId] = useState("");
+  const [experimentTitle, setExperimentTitle] = useState("");
+  const [experimentInstruction, setExperimentInstruction] = useState("");
+  const [experimentStatus, setExperimentStatus] = useState<ExperimentStatus>("running");
+  const [journalEntry, setJournalEntry] = useState("");
+  const [scheduleForm, setScheduleForm] = useState<ScheduleFormState>(() => {
+    const defaultWindow = getDefaultScheduleWindow();
+    return {
+      taskId: "",
+      titleOverride: "",
+      startsAt: defaultWindow.startsAt,
+      endsAt: defaultWindow.endsAt
+    };
+  });
   const deferredQuery = useDeferredValue(query);
 
   async function loadDashboard(options?: { background?: boolean }) {
@@ -111,12 +209,31 @@ export function HomePage() {
     }
 
     try {
-      const [tasks, active] = await Promise.all([listTasks(), getActiveTask()]);
+      const journalDay = localDateKey();
+      const dayBounds = localDayBounds(journalDay);
+      const [tasks, active, runningExperiments, stalledExperiments, scheduledBlocks, journalEntries] =
+        await Promise.all([
+          listTasks(),
+          getActiveTask(),
+          listExperiments({ status: "running" }),
+          listExperiments({ status: "stalled" }),
+          listScheduledBlocks({
+            status: "planned",
+            ends_after: dayBounds.startsAt,
+            starts_before: dayBounds.endsAt
+          }),
+          listJournalEntries(journalDay)
+        ]);
       startTransition(() => {
         setDashboard({
           tasks,
           activeTask: active.task,
           activeSessionStartedAt: active.work_session?.started_at ?? null,
+          runningExperiments,
+          stalledExperiments,
+          scheduledBlocks,
+          journalEntries,
+          journalDay,
           syncedAt: new Date()
         });
         setError(null);
@@ -237,8 +354,111 @@ export function HomePage() {
     }
   }
 
+  function resolveTaskSelection(selectedTaskId: string) {
+    return (
+      selectedTaskId ||
+      dashboard.activeTask?.id ||
+      dashboard.tasks.find((task) => !["done", "archived"].includes(task.status))?.id ||
+      ""
+    );
+  }
+
+  async function handleRegisterExperiment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const taskId = resolveTaskSelection(experimentTaskId);
+    if (taskId.length === 0) {
+      setError("Pick a task before registering an experiment.");
+      return;
+    }
+    if (experimentTitle.trim().length === 0) {
+      setError("Experiment title is required.");
+      return;
+    }
+
+    setIsRegisteringExperiment(true);
+    try {
+      await registerExperiment({
+        task_id: taskId,
+        title: experimentTitle.trim(),
+        instruction: experimentInstruction.trim() || undefined,
+        status: experimentStatus
+      });
+      setExperimentTitle("");
+      setExperimentInstruction("");
+      setExperimentStatus("running");
+      await loadDashboard({ background: true });
+    } catch (experimentError) {
+      setError(
+        experimentError instanceof Error
+          ? experimentError.message
+          : "Failed to register experiment."
+      );
+    } finally {
+      setIsRegisteringExperiment(false);
+    }
+  }
+
+  async function handleCreateScheduledBlock(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const taskId = resolveTaskSelection(scheduleForm.taskId);
+    if (taskId.length === 0) {
+      setError("Pick a task before scheduling a block.");
+      return;
+    }
+    if (scheduleForm.startsAt.length === 0 || scheduleForm.endsAt.length === 0) {
+      setError("Scheduled blocks require start and end times.");
+      return;
+    }
+
+    setIsSchedulingBlock(true);
+    try {
+      await createScheduledBlock({
+        task_id: taskId,
+        title_override: scheduleForm.titleOverride.trim() || undefined,
+        starts_at: new Date(scheduleForm.startsAt).toISOString(),
+        ends_at: new Date(scheduleForm.endsAt).toISOString()
+      });
+      const defaultWindow = getDefaultScheduleWindow();
+      setScheduleForm({
+        taskId: taskId,
+        titleOverride: "",
+        startsAt: defaultWindow.startsAt,
+        endsAt: defaultWindow.endsAt
+      });
+      await loadDashboard({ background: true });
+    } catch (scheduleError) {
+      setError(
+        scheduleError instanceof Error ? scheduleError.message : "Failed to schedule block."
+      );
+    } finally {
+      setIsSchedulingBlock(false);
+    }
+  }
+
+  async function handleAppendJournalEntry(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (journalEntry.trim().length === 0) {
+      setError("Journal entry is required.");
+      return;
+    }
+
+    setIsAppendingJournal(true);
+    try {
+      await appendJournalEntry(dashboard.journalDay, journalEntry.trim());
+      setJournalEntry("");
+      await loadDashboard({ background: true });
+    } catch (journalError) {
+      setError(journalError instanceof Error ? journalError.message : "Failed to append entry.");
+    } finally {
+      setIsAppendingJournal(false);
+    }
+  }
+
   const openTasks = dashboard.tasks.filter((task) => !["done", "archived"].includes(task.status));
   const activeTaskId = dashboard.activeTask?.id ?? null;
+  const taskLookup = new Map(dashboard.tasks.map((task) => [task.id, task]));
+  const defaultExperimentTaskId = resolveTaskSelection(experimentTaskId);
+  const defaultScheduleTaskId = resolveTaskSelection(scheduleForm.taskId);
 
   return (
     <main className="page-shell">
@@ -397,6 +617,249 @@ export function HomePage() {
         </article>
       </section>
 
+      {error ? <div className="banner banner--error">{error}</div> : null}
+
+      <section className="operations-grid" aria-label="Today operations">
+        <article className="panel panel--stack">
+          <div className="panel-header panel-header--compact">
+            <div>
+              <p className="section-kicker">Experiments</p>
+              <h2>Runs needing attention</h2>
+            </div>
+            <span className="count-chip">
+              {dashboard.runningExperiments.length + dashboard.stalledExperiments.length}
+            </span>
+          </div>
+
+          <div className="split-list">
+            <div>
+              <h3>Running</h3>
+              {dashboard.runningExperiments.length > 0 ? (
+                <ul className="entity-list">
+                  {dashboard.runningExperiments.map((experiment) => (
+                    <li className="entity-row" key={experiment.id}>
+                      <div>
+                        <strong>{experiment.title}</strong>
+                        <span>{taskLookup.get(experiment.task_id)?.title ?? "Unknown task"}</span>
+                      </div>
+                      <span className={`pill pill--${experiment.status}`}>
+                        {experiment.status}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="empty-state">No running experiments.</p>
+              )}
+            </div>
+
+            <div>
+              <h3>Stalled</h3>
+              {dashboard.stalledExperiments.length > 0 ? (
+                <ul className="entity-list">
+                  {dashboard.stalledExperiments.map((experiment) => (
+                    <li className="entity-row entity-row--alert" key={experiment.id}>
+                      <div>
+                        <strong>{experiment.title}</strong>
+                        <span>{taskLookup.get(experiment.task_id)?.title ?? "Unknown task"}</span>
+                      </div>
+                      <span className={`pill pill--${experiment.status}`}>
+                        {experiment.status}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="empty-state">No stalled experiments.</p>
+              )}
+            </div>
+          </div>
+
+          <form className="compact-form" onSubmit={(event) => void handleRegisterExperiment(event)}>
+            <label>
+              <span>Task</span>
+              <select
+                disabled={openTasks.length === 0}
+                onChange={(event) => setExperimentTaskId(event.target.value)}
+                value={defaultExperimentTaskId}
+              >
+                {openTasks.length === 0 ? <option value="">No open tasks</option> : null}
+                {openTasks.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Title</span>
+              <input
+                onChange={(event) => setExperimentTitle(event.target.value)}
+                placeholder="Scaling run 256 ranks"
+                value={experimentTitle}
+              />
+            </label>
+            <label>
+              <span>Instruction</span>
+              <textarea
+                onChange={(event) => setExperimentInstruction(event.target.value)}
+                placeholder="What this run should prove or disprove."
+                rows={3}
+                value={experimentInstruction}
+              />
+            </label>
+            <label>
+              <span>Status</span>
+              <select
+                onChange={(event) => setExperimentStatus(event.target.value as ExperimentStatus)}
+                value={experimentStatus}
+              >
+                {experimentStatusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              className="button button--accent"
+              disabled={isRegisteringExperiment || defaultExperimentTaskId.length === 0}
+              type="submit"
+            >
+              {isRegisteringExperiment ? "Registering..." : "Register experiment"}
+            </button>
+          </form>
+        </article>
+
+        <article className="panel panel--stack">
+          <div className="panel-header panel-header--compact">
+            <div>
+              <p className="section-kicker">Planned today</p>
+              <h2>Scheduled blocks</h2>
+            </div>
+            <span className="count-chip">{dashboard.scheduledBlocks.length}</span>
+          </div>
+
+          {dashboard.scheduledBlocks.length > 0 ? (
+            <ul className="entity-list entity-list--timeline">
+              {dashboard.scheduledBlocks.map((block) => (
+                <li className="entity-row" key={block.id}>
+                  <div>
+                    <strong>
+                      {block.title_override ?? taskLookup.get(block.task_id)?.title ?? "Untitled block"}
+                    </strong>
+                    <span>{taskLookup.get(block.task_id)?.title ?? "Unknown task"}</span>
+                  </div>
+                  <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="empty-state">No planned blocks for today.</p>
+          )}
+
+          <form className="compact-form" onSubmit={(event) => void handleCreateScheduledBlock(event)}>
+            <label>
+              <span>Task</span>
+              <select
+                disabled={openTasks.length === 0}
+                onChange={(event) =>
+                  setScheduleForm((current) => ({ ...current, taskId: event.target.value }))
+                }
+                value={defaultScheduleTaskId}
+              >
+                {openTasks.length === 0 ? <option value="">No open tasks</option> : null}
+                {openTasks.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Title override</span>
+              <input
+                onChange={(event) =>
+                  setScheduleForm((current) => ({
+                    ...current,
+                    titleOverride: event.target.value
+                  }))
+                }
+                placeholder="Optional calendar label"
+                value={scheduleForm.titleOverride}
+              />
+            </label>
+            <div className="inline-grid">
+              <label>
+                <span>Start</span>
+                <input
+                  onChange={(event) =>
+                    setScheduleForm((current) => ({ ...current, startsAt: event.target.value }))
+                  }
+                  type="datetime-local"
+                  value={scheduleForm.startsAt}
+                />
+              </label>
+              <label>
+                <span>End</span>
+                <input
+                  onChange={(event) =>
+                    setScheduleForm((current) => ({ ...current, endsAt: event.target.value }))
+                  }
+                  type="datetime-local"
+                  value={scheduleForm.endsAt}
+                />
+              </label>
+            </div>
+            <button
+              className="button button--ghost"
+              disabled={isSchedulingBlock || defaultScheduleTaskId.length === 0}
+              type="submit"
+            >
+              {isSchedulingBlock ? "Scheduling..." : "Schedule block"}
+            </button>
+          </form>
+        </article>
+
+        <article className="panel panel--stack">
+          <div className="panel-header panel-header--compact">
+            <div>
+              <p className="section-kicker">Journal</p>
+              <h2>{dashboard.journalDay}</h2>
+            </div>
+            <span className="count-chip">{dashboard.journalEntries.length}</span>
+          </div>
+
+          {dashboard.journalEntries.length > 0 ? (
+            <ol className="journal-list">
+              {dashboard.journalEntries.map((entry) => (
+                <li key={entry.id}>
+                  <time>{formatDateTime(entry.created_at)}</time>
+                  <p>{entry.content}</p>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="empty-state">No journal entries yet today.</p>
+          )}
+
+          <form className="compact-form" onSubmit={(event) => void handleAppendJournalEntry(event)}>
+            <label>
+              <span>Quick note</span>
+              <textarea
+                onChange={(event) => setJournalEntry(event.target.value)}
+                placeholder="Capture the observation while it is fresh."
+                rows={5}
+                value={journalEntry}
+              />
+            </label>
+            <button className="button button--accent" disabled={isAppendingJournal} type="submit">
+              {isAppendingJournal ? "Appending..." : "Append entry"}
+            </button>
+          </form>
+        </article>
+      </section>
+
       <section className="panel panel--wide">
         <div className="panel-header">
           <div>
@@ -413,7 +876,6 @@ export function HomePage() {
           </label>
         </div>
 
-        {error ? <div className="banner banner--error">{error}</div> : null}
         {isLoading ? <div className="banner">Loading Flow Desk...</div> : null}
 
         <div className="task-grid">

@@ -12,6 +12,8 @@
   --warm-soft: #f5dfd1;
   --danger: #a93c3c;
   --danger-soft: #f7d8d8;
+  --cool: #375f9f;
+  --cool-soft: #dce6f7;
   --border: rgba(30, 27, 24, 0.08);
   --shadow: 0 24px 80px rgba(69, 42, 17, 0.12);
   font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
@@ -176,6 +178,31 @@ body {
   color: #095149;
 }
 
+.pill--running,
+.pill--succeeded,
+.pill--planned {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.pill--stalled,
+.pill--failed {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.pill--queued,
+.pill--draft,
+.pill--unknown {
+  background: var(--cool-soft);
+  color: var(--cool);
+}
+
+.pill--canceled {
+  background: rgba(95, 88, 80, 0.12);
+  color: var(--muted);
+}
+
 .pill--inbox,
 .pill--archived {
   background: rgba(95, 88, 80, 0.12);
@@ -227,6 +254,7 @@ body {
 .task-card__meta span,
 .search-field span,
 .create-form label span,
+.compact-form label span,
 .waiting-bar label span,
 .empty-ribbon {
   display: block;
@@ -311,6 +339,7 @@ select {
 }
 
 .create-form label,
+.compact-form label,
 .search-field,
 .waiting-bar label {
   display: grid;
@@ -345,8 +374,26 @@ textarea {
   margin-top: 1.25rem;
 }
 
+.operations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 1.25rem;
+}
+
+.operations-grid .panel {
+  margin-top: 0;
+}
+
 .panel--wide {
   padding: 1.65rem;
+}
+
+.panel--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
 }
 
 .panel-header {
@@ -355,6 +402,22 @@ textarea {
   gap: 1rem;
   align-items: end;
   margin-bottom: 1.1rem;
+}
+
+.panel-header--compact {
+  margin-bottom: 0;
+}
+
+.count-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4rem;
+  min-height: 2.4rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(30, 27, 24, 0.08);
+  font-weight: 800;
 }
 
 .search-field {
@@ -371,6 +434,133 @@ textarea {
 .banner--error {
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+.split-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.split-list h3 {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+}
+
+.entity-list,
+.journal-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entity-list--timeline {
+  gap: 0.85rem;
+}
+
+.entity-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.9rem;
+  align-items: start;
+  padding: 0.95rem;
+  border: 1px solid rgba(30, 27, 24, 0.07);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.entity-row--alert {
+  border-color: rgba(169, 60, 60, 0.24);
+  background: rgba(247, 216, 216, 0.42);
+}
+
+.entity-row div {
+  min-width: 0;
+}
+
+.entity-row strong,
+.entity-row span,
+.entity-row time {
+  overflow-wrap: anywhere;
+}
+
+.entity-row strong {
+  display: block;
+  line-height: 1.35;
+}
+
+.entity-row div > span,
+.entity-row time {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.compact-form {
+  display: grid;
+  gap: 0.9rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(30, 27, 24, 0.07);
+}
+
+.inline-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.empty-state {
+  margin: 0;
+  padding: 0.9rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.38);
+  color: var(--muted);
+}
+
+.journal-list {
+  counter-reset: journal;
+}
+
+.journal-list li {
+  position: relative;
+  padding: 0.95rem 0.95rem 0.95rem 2.65rem;
+  border: 1px solid rgba(30, 27, 24, 0.07);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.journal-list li::before {
+  counter-increment: journal;
+  content: counter(journal);
+  position: absolute;
+  top: 0.95rem;
+  left: 0.95rem;
+  display: inline-grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.journal-list time {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.journal-list p {
+  margin: 0.45rem 0 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
 }
 
 .task-grid {
@@ -439,6 +629,10 @@ textarea {
   }
 
   .stat-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-grid {
     grid-template-columns: 1fr;
   }
 }

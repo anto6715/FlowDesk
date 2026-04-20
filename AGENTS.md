@@ -36,6 +36,9 @@
 - Current frontend now includes:
   - first real `Today` cockpit
   - local API client for task flows
+  - local API client coverage for experiments, scheduled blocks, and journal entries
+  - Today panels for running/stalled experiments, planned blocks, and daily journal entries
+  - quick actions to register experiments, schedule blocks, and append journal entries
   - Vite proxy to the backend `/api`
   - verified production build with `npm run build`
 
@@ -73,9 +76,9 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. Connect experiments, scheduled blocks, and notes into richer UI surfaces
-2. Connect macro-activities and GitHub references into richer task creation UI
-3. Add frontend navigation beyond the `Today` cockpit
+1. Connect macro-activities and GitHub references into richer task creation UI
+2. Add frontend navigation beyond the `Today` cockpit
+3. Add dedicated experiment, journal, and calendar views
 4. Extend reporting queries once the core flows are visible in the UI
 
 ## Commit guidance

@@ -26,6 +26,20 @@ export type WorkSessionEndReason =
   | "completed"
   | "other";
 
+export type ExperimentStatus =
+  | "draft"
+  | "queued"
+  | "running"
+  | "stalled"
+  | "succeeded"
+  | "failed"
+  | "canceled"
+  | "unknown";
+
+export type ScheduledBlockStatus = "planned" | "completed" | "canceled";
+
+export type NoteScope = "daily_journal" | "task" | "experiment";
+
 export interface Task {
   id: string;
   title: string;
@@ -63,6 +77,78 @@ export interface CreateTaskInput {
   github_reference_id?: string | null;
 }
 
+export interface Experiment {
+  id: string;
+  task_id: string;
+  title: string;
+  instruction: string | null;
+  status: ExperimentStatus;
+  work_dir: string | null;
+  repository_path: string | null;
+  branch_name: string | null;
+  commit_hash: string | null;
+  version_label: string | null;
+  launch_command: string | null;
+  scheduler_name: string | null;
+  scheduler_job_id: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  outcome_summary: string | null;
+  log_path: string | null;
+  result_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateExperimentInput {
+  task_id: string;
+  title: string;
+  instruction?: string | null;
+  status?: ExperimentStatus;
+  work_dir?: string | null;
+  repository_path?: string | null;
+  branch_name?: string | null;
+  commit_hash?: string | null;
+  version_label?: string | null;
+  launch_command?: string | null;
+  scheduler_name?: string | null;
+  scheduler_job_id?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
+  outcome_summary?: string | null;
+  log_path?: string | null;
+  result_path?: string | null;
+}
+
+export interface ScheduledBlock {
+  id: string;
+  task_id: string;
+  title_override: string | null;
+  starts_at: string;
+  ends_at: string;
+  status: ScheduledBlockStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateScheduledBlockInput {
+  task_id: string;
+  title_override?: string | null;
+  starts_at: string;
+  ends_at: string;
+}
+
+export interface Note {
+  id: string;
+  scope: NoteScope;
+  journal_day: string | null;
+  task_id: string | null;
+  experiment_id: string | null;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 class ApiError extends Error {
@@ -90,6 +176,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+function withQuery(path: string, params: Record<string, string | null | undefined>): string {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      search.set(key, value);
+    }
+  });
+
+  const query = search.toString();
+  return query.length > 0 ? `${path}?${query}` : path;
 }
 
 export async function listTasks(): Promise<Task[]> {
@@ -134,5 +232,60 @@ export async function switchTask(fromTaskId: string, toTaskId: string): Promise<
       from_task_id: fromTaskId,
       to_task_id: toTaskId
     })
+  });
+}
+
+export async function listExperiments(options?: {
+  task_id?: string | null;
+  status?: ExperimentStatus | null;
+}): Promise<Experiment[]> {
+  return request<Experiment[]>(
+    withQuery("/experiments", {
+      task_id: options?.task_id,
+      status: options?.status
+    })
+  );
+}
+
+export async function registerExperiment(input: CreateExperimentInput): Promise<Experiment> {
+  return request<Experiment>("/experiments", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function listScheduledBlocks(options?: {
+  task_id?: string | null;
+  status?: ScheduledBlockStatus | null;
+  starts_before?: string | null;
+  ends_after?: string | null;
+}): Promise<ScheduledBlock[]> {
+  return request<ScheduledBlock[]>(
+    withQuery("/scheduled-blocks", {
+      task_id: options?.task_id,
+      status: options?.status,
+      starts_before: options?.starts_before,
+      ends_after: options?.ends_after
+    })
+  );
+}
+
+export async function createScheduledBlock(
+  input: CreateScheduledBlockInput
+): Promise<ScheduledBlock> {
+  return request<ScheduledBlock>("/scheduled-blocks", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function listJournalEntries(journalDay: string): Promise<Note[]> {
+  return request<Note[]>(`/journal/${journalDay}/entries`);
+}
+
+export async function appendJournalEntry(journalDay: string, content: string): Promise<Note> {
+  return request<Note>(`/journal/${journalDay}/entries`, {
+    method: "POST",
+    body: JSON.stringify({ content })
   });
 }
