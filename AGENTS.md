@@ -30,6 +30,7 @@
 - Task work-session read API committed in `7a10795`
 - Task detail workspace UI committed in `a005681`
 - Task and GitHub reference metadata update APIs committed in `6980037`
+- Core task UI feedback pass committed in `173df92`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
