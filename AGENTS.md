@@ -10,6 +10,7 @@
 ## Primary references
 
 - Design checkpoint: `docs/design-checkpoint.md`
+- Active UX redesign plan: `docs/ux-redesign-plan.md`
 - ADR 0001: `docs/adr/0001-monorepo-and-delivery-shape.md`
 - ADR 0002: `docs/adr/0002-application-architecture.md`
 
@@ -94,17 +95,16 @@ When resuming a future session:
 
 1. Read `AGENTS.md`
 2. Read `docs/design-checkpoint.md`
-3. Check `git status --short`
-4. Continue from the current milestone, not from scratch
+3. Read `docs/ux-redesign-plan.md`
+4. Check `git status --short`
+5. Continue from the current UX redesign point, not from scratch
+6. Ask the user before switching to the next UX redesign point
 
 ## Near-term implementation order
 
-1. User-test the updated Home, Tasks, Task detail, Journal, Experiments, and Calendar workflows
-2. Patch UI feedback from that pass, especially task-note prominence, left-nav sizing, and modal/drawer ergonomics
-3. Add report read models and reporting UI
-4. Add backup/export/import baseline
-5. Add experiment detail notes/artifacts UI
-6. Replace local view switching with URL-backed routing when navigation state needs deep links
+1. Continue `docs/ux-redesign-plan.md` point by point
+2. Ask the user before moving from one redesign point to the next
+3. After the redesign pass, resume reporting, backup/export/import, experiment detail, and URL-backed routing work
 
 ## Commit guidance
 

@@ -1,0 +1,127 @@
+# Flow Desk UX Redesign Plan
+
+## Purpose
+
+This plan tracks the current UI redesign effort. It is the authoritative resume point for future sessions after `AGENTS.md`.
+
+## Working rule
+
+- Proceed one point at a time.
+- Do not switch to the next point without asking the user first.
+- Pause backend feature work unless the current UI point requires a small contract change.
+- Keep existing backend contracts intact where possible.
+- Verify and commit each point before asking to continue.
+
+## Current active point
+
+Point 1: shell/layout foundation and hidden-action pattern.
+
+## Redesign goals
+
+- Reduce visual density across all views.
+- Make Home a low-distraction cockpit, not a command dashboard.
+- Hide creation/edit forms behind explicit actions.
+- Make notes and daily writing first-class, especially in task detail.
+- Keep navigation one-click and visible.
+- Make mobile layouts non-overflowing and usable.
+
+## Point-by-point plan
+
+### Point 1. Shell/layout foundation and hidden-action pattern
+
+Scope:
+
+- Fix hidden panels/forms so collapsed Home actions are truly hidden.
+- Establish a reusable hidden-action pattern for forms that should not occupy the page by default.
+- Tighten left navigation and app shell sizing.
+- Fix obvious mobile horizontal overflow from shell/select/form layout.
+
+Acceptance:
+
+- Home default view shows only active task and journal-oriented content.
+- Hidden task/experiment/schedule forms do not appear until opened.
+- Mobile screenshots do not show page-level horizontal overflow.
+- `npm run build`, backend tests, and `git diff --check` pass.
+
+### Point 2. Redesigned Home
+
+Scope:
+
+- Reduce Home to active task, latest journal notes, and compact next-up context.
+- Replace always-visible forms with modal/drawer actions.
+- Re-evaluate whether scheduled blocks belong on Home by default.
+
+Acceptance:
+
+- First viewport is calm and immediately understandable.
+- `+ Task`, `+ Note`, and `+ Experiment` are available without dominating the screen.
+
+### Point 3. Shared form and action components
+
+Scope:
+
+- Introduce shared patterns for task creation, experiment creation, GitHub reference entry, task selector, and action drawers/modals.
+- Remove duplicated form implementations where practical.
+
+Acceptance:
+
+- The same GitHub URL-first form behavior is used everywhere.
+- Task and experiment creation look and behave consistently.
+
+### Point 4. Redesigned Tasks and Task Detail
+
+Scope:
+
+- Make Tasks a focused task management workspace.
+- Make Task Detail notes-first, with metadata/editing secondary.
+- Move dense metadata behind an explicit edit action or secondary panel.
+
+Acceptance:
+
+- Task notes are prominent without scrolling past metadata.
+- Task editing is available but not visually dominant.
+
+### Point 5. Redesigned Journal, Experiments, and Calendar
+
+Scope:
+
+- Journal: make daily writing primary and task linking lightweight.
+- Experiments: make run registry scannable and creation secondary.
+- Calendar: keep real calendar timeline; move scheduling into compact action UI.
+
+Acceptance:
+
+- Each view has one clear primary job.
+- Creation forms no longer dominate default layouts.
+
+### Point 6. Visual and mobile polish
+
+Scope:
+
+- Screenshot pass across desktop and mobile.
+- Fix typography scale, card density, form spacing, select overflow, table overflow, and empty states.
+- Update README/AGENTS with final state and next steps.
+
+Acceptance:
+
+- Browser screenshot pass has no obvious layout overlap or horizontal page overflow.
+- Verification passes.
+
+## Verification per point
+
+Run before each checkpoint commit:
+
+```bash
+cd backend
+uv run ruff check .
+uv run pytest
+
+cd ../frontend
+npm run build
+
+cd ..
+git diff --check
+```
+
+Use browser screenshots for UX acceptance when layout changes are involved.
+
