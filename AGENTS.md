@@ -40,6 +40,7 @@
 - SQLite Alembic version-stamp persistence fix committed in `1d74f04`
 - UX redesign plan committed in `b5eb63d`
 - UX redesign Point 1 shell/hidden-action foundation committed in `1ec4268`
+- UX redesign Point 2 redesigned Home cockpit committed in `7160403`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
@@ -54,10 +55,10 @@
   - daily journal, task-linked journal entry, task note, and experiment note routes
   - API tests against temporary SQLite databases
 - Current frontend now includes:
-  - distraction-free `Home` focused on active task and journal
+  - redesigned `Home` focused on active task, recent journal notes, compact next-up context, and dialog-based quick actions
   - local API client for task flows
   - local API client coverage for experiments, scheduled blocks, and journal entries
-  - Home quick actions for task and experiment creation
+  - Home quick actions for task, note, and experiment creation
   - task and journal note creation with optional task links for daily journal entries
   - task creation with inline macro-activity and URL-first GitHub reference selection/creation
   - left-panel navigation for Home, Tasks, Journal, Experiments, and Calendar

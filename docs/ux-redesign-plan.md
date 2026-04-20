@@ -15,8 +15,9 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 ## Current status
 
 - Point 1 completed in `1ec4268`.
-- Point 2 has not started.
-- Ask the user before starting Point 2.
+- Point 2 completed in `7160403`.
+- Point 3 has not started.
+- Ask the user before starting Point 3.
 
 ## Redesign goals
 
@@ -46,6 +47,8 @@ Acceptance:
 - `npm run build`, backend tests, and `git diff --check` pass.
 
 ### Point 2. Redesigned Home
+
+Status: completed in `7160403`.
 
 Scope:
 
