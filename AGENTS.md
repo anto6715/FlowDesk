@@ -91,8 +91,15 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. User-test the updated task creation, task detail metadata editing, and calendar workflows
-2. Patch UI feedback from that test pass, especially spacing, navigation, and form ergonomics
+1. Active UX feedback slice:
+   - replace top secondary view selector with left navigation
+   - make Home distraction-free around active task and journal
+   - move task creation behind compact `+` actions
+   - simplify GitHub reference creation/editing around pasted issue/PR URLs with manual fallback
+   - make task detail notes prominent, with metadata secondary
+   - add task-scoped experiment creation from task detail and easier experiment creation from Home
+   - allow daily journal entries to be linked to a task
+2. After the UX feedback slice, run another user-test pass focused on navigation, note visibility, and form ergonomics
 3. Add report read models and reporting UI
 4. Add backup/export/import baseline
 5. Add experiment detail notes/artifacts UI
