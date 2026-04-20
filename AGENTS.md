@@ -24,6 +24,7 @@
 - Scheduled-block services and routes committed in `15f49ea`
 - Journal and note APIs committed in `dd1150f`
 - Today cockpit operational frontend integration committed in `af8a608`
+- Reference-aware task creation UI committed in `e4dc2b0`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
