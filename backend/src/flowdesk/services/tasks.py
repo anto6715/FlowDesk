@@ -65,6 +65,16 @@ def list_tasks(session: Session) -> list[Task]:
     return list(session.scalars(statement))
 
 
+def list_work_sessions_for_task(session: Session, task_id: str) -> list[WorkSession]:
+    _get_task_or_raise(session, task_id)
+    statement = (
+        select(WorkSession)
+        .where(WorkSession.task_id == task_id)
+        .order_by(WorkSession.started_at.desc(), WorkSession.created_at.desc())
+    )
+    return list(session.scalars(statement))
+
+
 def create_task(
     session: Session,
     *,

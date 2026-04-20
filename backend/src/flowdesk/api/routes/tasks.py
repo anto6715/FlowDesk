@@ -20,6 +20,7 @@ from flowdesk.services.tasks import (
     TaskNotFoundError,
     create_task,
     get_active_context,
+    list_work_sessions_for_task,
     list_tasks,
     pause_task,
     start_task,
@@ -63,6 +64,18 @@ def get_active_task(session: Session = Depends(get_db_session)) -> ActiveTaskRes
         task=TaskRead.model_validate(task) if task is not None else None,
         work_session=WorkSessionRead.model_validate(work_session) if work_session is not None else None,
     )
+
+
+@router.get("/{task_id}/work-sessions", response_model=list[WorkSessionRead])
+def list_task_work_sessions(
+    task_id: str,
+    session: Session = Depends(get_db_session),
+) -> list[WorkSessionRead]:
+    try:
+        work_sessions = list_work_sessions_for_task(session, task_id)
+        return [WorkSessionRead.model_validate(work_session) for work_session in work_sessions]
+    except TaskNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.post("/{task_id}/start", response_model=TaskSessionResponse)

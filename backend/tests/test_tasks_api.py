@@ -82,6 +82,43 @@ def test_task_start_switch_and_wait_flow(client: TestClient) -> None:
     assert final_active_response.json() == {"task": None, "work_session": None}
 
 
+def test_list_task_work_sessions(client: TestClient) -> None:
+    task = client.post("/api/tasks", json={"title": "Measure solver setup"}).json()
+
+    first_start = client.post(
+        f"/api/tasks/{task['id']}/start",
+        json={"started_at": "2026-04-20T08:00:00Z"},
+    )
+    first_pause = client.post(
+        f"/api/tasks/{task['id']}/pause",
+        json={
+            "ended_at": "2026-04-20T09:30:00Z",
+            "end_reason": "paused",
+        },
+    )
+    second_start = client.post(
+        f"/api/tasks/{task['id']}/start",
+        json={"started_at": "2026-04-20T10:00:00Z"},
+    )
+    sessions_response = client.get(f"/api/tasks/{task['id']}/work-sessions")
+
+    assert first_start.status_code == 200
+    assert first_pause.status_code == 200
+    assert second_start.status_code == 200
+    assert sessions_response.status_code == 200
+    sessions = sessions_response.json()
+    assert [session["end_reason"] for session in sessions] == [None, "paused"]
+    assert sessions[0]["ended_at"] is None
+    assert sessions[1]["ended_at"] == "2026-04-20T09:30:00"
+
+
+def test_list_task_work_sessions_rejects_missing_task(client: TestClient) -> None:
+    response = client.get("/api/tasks/missing-task/work-sessions")
+
+    assert response.status_code == 404
+    assert "Task" in response.json()["detail"]
+
+
 def test_task_creation_rejects_missing_linked_ids(client: TestClient) -> None:
     response = client.post(
         "/api/tasks",
