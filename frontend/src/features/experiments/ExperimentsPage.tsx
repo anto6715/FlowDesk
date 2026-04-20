@@ -1,8 +1,15 @@
-import { startTransition, useDeferredValue, useEffect, useState } from "react";
+import {
+  startTransition,
+  type FormEvent,
+  useDeferredValue,
+  useEffect,
+  useState
+} from "react";
 
 import {
   listExperiments,
   listTasks,
+  registerExperiment,
   setExperimentState,
   type Experiment,
   type ExperimentStatus,
@@ -42,6 +49,13 @@ const transitionTargets: Array<{ value: ExperimentStatus; label: string }> = [
   { value: "failed", label: "Failed" }
 ];
 
+const createStatusOptions: Array<{ value: ExperimentStatus; label: string }> = [
+  { value: "running", label: "Running" },
+  { value: "queued", label: "Queued" },
+  { value: "draft", label: "Draft" },
+  { value: "stalled", label: "Stalled" }
+];
+
 function formatDateTime(iso: string | null) {
   if (iso === null) {
     return "Not available";
@@ -57,9 +71,14 @@ export function ExperimentsPage() {
   const [state, setState] = useState<ExperimentsState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
   const [busyExperimentId, setBusyExperimentId] = useState<string | null>(null);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ExperimentStatusFilter>("all");
+  const [createTaskId, setCreateTaskId] = useState("");
+  const [createTitle, setCreateTitle] = useState("");
+  const [createInstruction, setCreateInstruction] = useState("");
+  const [createStatus, setCreateStatus] = useState<ExperimentStatus>("running");
   const deferredQuery = useDeferredValue(query);
 
   async function loadExperiments() {
@@ -86,6 +105,8 @@ export function ExperimentsPage() {
   }, []);
 
   const taskLookup = new Map(state.tasks.map((task) => [task.id, task]));
+  const openTasks = state.tasks.filter((task) => !["done", "archived"].includes(task.status));
+  const selectedCreateTaskId = createTaskId || openTasks[0]?.id || "";
   const filteredExperiments = state.experiments.filter((experiment) => {
     const taskTitle = taskLookup.get(experiment.task_id)?.title ?? "";
     const searchText =
@@ -109,6 +130,40 @@ export function ExperimentsPage() {
       setError(stateError instanceof Error ? stateError.message : "Failed to update experiment.");
     } finally {
       setBusyExperimentId(null);
+    }
+  }
+
+  async function handleRegisterExperiment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (selectedCreateTaskId.length === 0) {
+      setError("Pick a task before registering an experiment.");
+      return;
+    }
+    if (createTitle.trim().length === 0) {
+      setError("Experiment title is required.");
+      return;
+    }
+
+    setIsRegistering(true);
+    try {
+      await registerExperiment({
+        task_id: selectedCreateTaskId,
+        title: createTitle.trim(),
+        instruction: createInstruction.trim() || undefined,
+        status: createStatus
+      });
+      setCreateTitle("");
+      setCreateInstruction("");
+      setCreateStatus("running");
+      await loadExperiments();
+    } catch (registerError) {
+      setError(
+        registerError instanceof Error
+          ? registerError.message
+          : "Failed to register experiment."
+      );
+    } finally {
+      setIsRegistering(false);
     }
   }
 
@@ -144,6 +199,69 @@ export function ExperimentsPage() {
             {state.experiments.filter((experiment) => experiment.status === "failed").length}
           </strong>
         </article>
+      </section>
+
+      <section className="panel panel--wide">
+        <div className="panel-header">
+          <div>
+            <p className="section-kicker">Register experiment</p>
+            <h2>New run</h2>
+          </div>
+        </div>
+        <form className="create-form create-form--tasks" onSubmit={(event) => void handleRegisterExperiment(event)}>
+          <label>
+            <span>Task</span>
+            <select
+              disabled={openTasks.length === 0}
+              onChange={(event) => setCreateTaskId(event.target.value)}
+              value={selectedCreateTaskId}
+            >
+              {openTasks.length === 0 ? <option value="">No open tasks</option> : null}
+              {openTasks.map((task) => (
+                <option key={task.id} value={task.id}>
+                  {task.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Title</span>
+            <input
+              onChange={(event) => setCreateTitle(event.target.value)}
+              placeholder="Scaling run 256 ranks"
+              value={createTitle}
+            />
+          </label>
+          <label>
+            <span>Instruction</span>
+            <textarea
+              onChange={(event) => setCreateInstruction(event.target.value)}
+              placeholder="What this run should prove or disprove."
+              rows={3}
+              value={createInstruction}
+            />
+          </label>
+          <label>
+            <span>Status</span>
+            <select
+              onChange={(event) => setCreateStatus(event.target.value as ExperimentStatus)}
+              value={createStatus}
+            >
+              {createStatusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="button button--accent"
+            disabled={isRegistering || selectedCreateTaskId.length === 0}
+            type="submit"
+          >
+            {isRegistering ? "Registering..." : "Register experiment"}
+          </button>
+        </form>
       </section>
 
       <section className="panel panel--wide">
