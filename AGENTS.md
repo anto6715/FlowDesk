@@ -20,6 +20,9 @@
 - Persistence baseline committed in `ca3f053`
 - Task timing services and routes committed in `4cffd4a`
 - Reference APIs and backend integration tests committed in `0a2fed6`
+- Experiment services and routes committed in `0ebe200`
+- Scheduled-block services and routes committed in `15f49ea`
+- Journal and note APIs committed in `dd1150f`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
