@@ -1,6 +1,12 @@
 import { startTransition, type FormEvent, useEffect, useState } from "react";
 
-import { appendJournalEntry, listJournalEntries, type Note } from "../../shared/api";
+import {
+  appendJournalEntry,
+  listJournalEntries,
+  listTasks,
+  type Note,
+  type Task
+} from "../../shared/api";
 
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
@@ -22,11 +28,13 @@ function formatDateTime(iso: string | null) {
 
 interface JournalState {
   entries: Note[];
+  tasks: Task[];
   syncedAt: Date | null;
 }
 
 const initialState: JournalState = {
   entries: [],
+  tasks: [],
   syncedAt: null
 };
 
@@ -34,6 +42,7 @@ export function JournalPage() {
   const [state, setState] = useState<JournalState>(initialState);
   const [journalDay, setJournalDay] = useState(localDateKey());
   const [entryContent, setEntryContent] = useState("");
+  const [entryTaskId, setEntryTaskId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isAppending, setIsAppending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,10 +50,11 @@ export function JournalPage() {
   async function loadJournalEntries(day: string) {
     setIsLoading(true);
     try {
-      const entries = await listJournalEntries(day);
+      const [entries, tasks] = await Promise.all([listJournalEntries(day), listTasks()]);
       startTransition(() => {
         setState({
           entries,
+          tasks,
           syncedAt: new Date()
         });
         setError(null);
@@ -69,7 +79,7 @@ export function JournalPage() {
 
     setIsAppending(true);
     try {
-      await appendJournalEntry(journalDay, entryContent.trim());
+      await appendJournalEntry(journalDay, entryContent.trim(), entryTaskId || null);
       setEntryContent("");
       await loadJournalEntries(journalDay);
     } catch (appendError) {
@@ -78,6 +88,9 @@ export function JournalPage() {
       setIsAppending(false);
     }
   }
+
+  const taskLookup = new Map(state.tasks.map((task) => [task.id, task]));
+  const openTasks = state.tasks.filter((task) => !["done", "archived"].includes(task.status));
 
   return (
     <main className="page-shell">
@@ -117,6 +130,11 @@ export function JournalPage() {
               {state.entries.map((entry) => (
                 <li key={entry.id}>
                   <time>{formatDateTime(entry.created_at)}</time>
+                  {entry.task_id ? (
+                    <span className="note-link-chip">
+                      {taskLookup.get(entry.task_id)?.title ?? "Linked task"}
+                    </span>
+                  ) : null}
                   <p>{entry.content}</p>
                 </li>
               ))}
@@ -129,6 +147,20 @@ export function JournalPage() {
         <article className="panel panel--stack">
           <p className="section-kicker">Append</p>
           <form className="compact-form compact-form--flush" onSubmit={(event) => void handleAppendEntry(event)}>
+            <label>
+              <span>Linked task</span>
+              <select
+                onChange={(event) => setEntryTaskId(event.target.value)}
+                value={entryTaskId}
+              >
+                <option value="">No linked task</option>
+                {openTasks.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.title}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label>
               <span>Entry</span>
               <textarea

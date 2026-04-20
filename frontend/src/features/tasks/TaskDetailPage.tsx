@@ -446,6 +446,9 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     {state.notes.map((note) => (
                       <li key={note.id}>
                         <time>{formatDateTime(note.created_at)}</time>
+                        {note.scope === "daily_journal" ? (
+                          <span className="note-link-chip">Daily journal</span>
+                        ) : null}
                         <p>{note.content}</p>
                       </li>
                     ))}

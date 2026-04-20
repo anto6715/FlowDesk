@@ -980,6 +980,18 @@ textarea {
   text-transform: uppercase;
 }
 
+.note-link-chip {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.45rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: var(--cool-soft);
+  color: var(--cool);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 .journal-list p {
   margin: 0.45rem 0 0;
   line-height: 1.55;

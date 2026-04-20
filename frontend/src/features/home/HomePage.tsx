@@ -248,6 +248,7 @@ export function HomePage() {
   const [experimentInstruction, setExperimentInstruction] = useState("");
   const [experimentStatus, setExperimentStatus] = useState<ExperimentStatus>("running");
   const [journalEntry, setJournalEntry] = useState("");
+  const [journalTaskId, setJournalTaskId] = useState("");
   const [scheduleForm, setScheduleForm] = useState<ScheduleFormState>(() => {
     const defaultWindow = getDefaultScheduleWindow();
     return {
@@ -601,7 +602,8 @@ export function HomePage() {
 
     setIsAppendingJournal(true);
     try {
-      await appendJournalEntry(dashboard.journalDay, journalEntry.trim());
+      const taskId = journalTaskId || dashboard.activeTask?.id || null;
+      await appendJournalEntry(dashboard.journalDay, journalEntry.trim(), taskId);
       setJournalEntry("");
       setIsJournalComposerOpen(false);
       await loadDashboard({ background: true });
@@ -630,6 +632,7 @@ export function HomePage() {
   );
   const defaultExperimentTaskId = resolveTaskSelection(experimentTaskId);
   const defaultScheduleTaskId = resolveTaskSelection(scheduleForm.taskId);
+  const defaultJournalTaskId = journalTaskId || dashboard.activeTask?.id || "";
 
   return (
     <main className="page-shell page-shell--home">
@@ -1244,6 +1247,11 @@ export function HomePage() {
               {dashboard.journalEntries.map((entry) => (
                 <li key={entry.id}>
                   <time>{formatDateTime(entry.created_at)}</time>
+                  {entry.task_id ? (
+                    <span className="note-link-chip">
+                      {taskLookup.get(entry.task_id)?.title ?? "Linked task"}
+                    </span>
+                  ) : null}
                   <p>{entry.content}</p>
                 </li>
               ))}
@@ -1256,6 +1264,20 @@ export function HomePage() {
             className={isJournalComposerOpen ? "compact-form" : "compact-form home-note-form--hidden"}
             onSubmit={(event) => void handleAppendJournalEntry(event)}
           >
+            <label>
+              <span>Linked task</span>
+              <select
+                onChange={(event) => setJournalTaskId(event.target.value)}
+                value={defaultJournalTaskId}
+              >
+                <option value="">No linked task</option>
+                {openTasks.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.title}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label>
               <span>Quick note</span>
               <textarea

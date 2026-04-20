@@ -29,6 +29,30 @@ def test_append_and_list_daily_journal_entries(client: TestClient) -> None:
     assert other_day_response.json() == []
 
 
+def test_append_daily_journal_entry_with_task_link(client: TestClient) -> None:
+    task = client.post("/api/tasks", json={"title": "Investigate memory regression"}).json()
+
+    journal_response = client.post(
+        "/api/journal/2026-04-20/entries",
+        json={
+            "content": "The regression is reproducible with four ranks.",
+            "task_id": task["id"],
+        },
+    )
+    journal_entries_response = client.get("/api/journal/2026-04-20/entries")
+    task_notes_response = client.get(f"/api/tasks/{task['id']}/notes")
+
+    assert journal_response.status_code == 201
+    assert journal_response.json()["scope"] == "daily_journal"
+    assert journal_response.json()["task_id"] == task["id"]
+
+    assert journal_entries_response.status_code == 200
+    assert journal_entries_response.json()[0]["task_id"] == task["id"]
+
+    assert task_notes_response.status_code == 200
+    assert task_notes_response.json()[0]["id"] == journal_response.json()["id"]
+
+
 def test_add_task_and_experiment_notes(client: TestClient) -> None:
     task = client.post("/api/tasks", json={"title": "Investigate memory regression"}).json()
     experiment = client.post(
@@ -69,6 +93,13 @@ def test_add_task_and_experiment_notes(client: TestClient) -> None:
 
 
 def test_notes_reject_missing_task_and_experiment(client: TestClient) -> None:
+    missing_journal_task_response = client.post(
+        "/api/journal/2026-04-20/entries",
+        json={
+            "content": "This task link should not be accepted.",
+            "task_id": "missing-task",
+        },
+    )
     missing_task_response = client.post(
         "/api/tasks/missing-task/notes",
         json={"content": "This should not be accepted."},
@@ -78,6 +109,8 @@ def test_notes_reject_missing_task_and_experiment(client: TestClient) -> None:
         json={"content": "This should not be accepted."},
     )
 
+    assert missing_journal_task_response.status_code == 404
+    assert "Task" in missing_journal_task_response.json()["detail"]
     assert missing_task_response.status_code == 404
     assert "Task" in missing_task_response.json()["detail"]
     assert missing_experiment_response.status_code == 404

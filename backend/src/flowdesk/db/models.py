@@ -391,7 +391,7 @@ class Note(Base):
     __table_args__ = (
         CheckConstraint(
             "("
-            "(scope = 'daily_journal' AND journal_day IS NOT NULL AND task_id IS NULL AND experiment_id IS NULL) OR "
+            "(scope = 'daily_journal' AND journal_day IS NOT NULL AND experiment_id IS NULL) OR "
             "(scope = 'task' AND journal_day IS NULL AND task_id IS NOT NULL AND experiment_id IS NULL) OR "
             "(scope = 'experiment' AND journal_day IS NULL AND task_id IS NULL AND experiment_id IS NOT NULL)"
             ")",

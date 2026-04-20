@@ -39,11 +39,15 @@ def append_journal_entry_route(
     session: Session = Depends(get_db_session),
 ) -> NoteRead:
     with session.begin():
-        entry = append_journal_entry(
-            session,
-            journal_day=journal_day,
-            content=payload.content,
-        )
+        try:
+            entry = append_journal_entry(
+                session,
+                journal_day=journal_day,
+                content=payload.content,
+                task_id=payload.task_id,
+            )
+        except NoteTaskNotFoundError as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     session.refresh(entry)
     return NoteRead.model_validate(entry)
 

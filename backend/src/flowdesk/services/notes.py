@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from flowdesk.db.models import Experiment, Note, NoteScope, Task
@@ -35,10 +35,15 @@ def append_journal_entry(
     *,
     journal_day: date,
     content: str,
+    task_id: str | None = None,
 ) -> Note:
+    if task_id is not None and session.get(Task, task_id) is None:
+        raise NoteTaskNotFoundError(f"Task '{task_id}' was not found.")
+
     note = Note(
         scope=NoteScope.DAILY_JOURNAL,
         journal_day=journal_day,
+        task_id=task_id,
         content=content,
     )
     session.add(note)
@@ -52,8 +57,12 @@ def list_task_notes(session: Session, task_id: str) -> list[Note]:
 
     statement = (
         select(Note)
-        .where(Note.scope == NoteScope.TASK)
-        .where(Note.task_id == task_id)
+        .where(
+            or_(
+                and_(Note.scope == NoteScope.TASK, Note.task_id == task_id),
+                and_(Note.scope == NoteScope.DAILY_JOURNAL, Note.task_id == task_id),
+            )
+        )
         .order_by(Note.created_at.asc())
     )
     return list(session.scalars(statement))

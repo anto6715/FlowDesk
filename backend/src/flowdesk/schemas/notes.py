@@ -11,6 +11,7 @@ class ORMModel(BaseModel):
 
 class NoteCreate(BaseModel):
     content: str = Field(min_length=1)
+    task_id: str | None = None
 
 
 class NoteRead(ORMModel):

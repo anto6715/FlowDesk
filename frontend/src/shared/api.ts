@@ -402,10 +402,14 @@ export async function listJournalEntries(journalDay: string): Promise<Note[]> {
   return request<Note[]>(`/journal/${journalDay}/entries`);
 }
 
-export async function appendJournalEntry(journalDay: string, content: string): Promise<Note> {
+export async function appendJournalEntry(
+  journalDay: string,
+  content: string,
+  taskId?: string | null
+): Promise<Note> {
   return request<Note>(`/journal/${journalDay}/entries`, {
     method: "POST",
-    body: JSON.stringify({ content })
+    body: JSON.stringify({ content, task_id: taskId ?? null })
   });
 }
 
