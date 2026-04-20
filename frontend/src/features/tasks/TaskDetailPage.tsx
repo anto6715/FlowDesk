@@ -9,9 +9,11 @@ import {
   listTaskNotes,
   listTasks,
   listTaskWorkSessions,
+  registerExperiment,
   updateGitHubReference,
   updateTask,
   type Experiment,
+  type ExperimentStatus,
   type GitHubReference,
   type MacroActivity,
   type Note,
@@ -88,6 +90,13 @@ const priorityOptions: Array<{ value: TaskPriority; label: string }> = [
   { value: "urgent", label: "Urgent" }
 ];
 
+const experimentStatusOptions: Array<{ value: ExperimentStatus; label: string }> = [
+  { value: "running", label: "Running" },
+  { value: "queued", label: "Queued" },
+  { value: "draft", label: "Draft" },
+  { value: "stalled", label: "Stalled" }
+];
+
 function formatDateTime(iso: string | null) {
   if (iso === null) {
     return "Not available";
@@ -158,9 +167,13 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingMetadata, setIsSavingMetadata] = useState(false);
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [isRegisteringExperiment, setIsRegisteringExperiment] = useState(false);
   const [metadataForm, setMetadataForm] =
     useState<MetadataFormState>(initialMetadataForm);
   const [noteContent, setNoteContent] = useState("");
+  const [experimentTitle, setExperimentTitle] = useState("");
+  const [experimentInstruction, setExperimentInstruction] = useState("");
+  const [experimentStatus, setExperimentStatus] = useState<ExperimentStatus>("running");
   const [error, setError] = useState<string | null>(null);
 
   async function loadTaskDetail() {
@@ -332,6 +345,39 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
     }
   }
 
+  async function handleRegisterExperiment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (state.task === null) {
+      return;
+    }
+    if (experimentTitle.trim().length === 0) {
+      setError("Experiment title is required.");
+      return;
+    }
+
+    setIsRegisteringExperiment(true);
+    try {
+      await registerExperiment({
+        task_id: state.task.id,
+        title: experimentTitle.trim(),
+        instruction: experimentInstruction.trim() || undefined,
+        status: experimentStatus
+      });
+      setExperimentTitle("");
+      setExperimentInstruction("");
+      setExperimentStatus("running");
+      await loadTaskDetail();
+    } catch (experimentError) {
+      setError(
+        experimentError instanceof Error
+          ? experimentError.message
+          : "Failed to register experiment."
+      );
+    } finally {
+      setIsRegisteringExperiment(false);
+    }
+  }
+
   const task = state.task;
   const unavailableGithubReferenceIds = new Set(
     state.tasks.flatMap((item) =>
@@ -387,6 +433,87 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 <span>Created: {formatDateTime(task.created_at)}</span>
                 <span>Updated: {formatDateTime(task.updated_at)}</span>
               </div>
+              <section className="task-notes-spotlight">
+                <div className="panel-header panel-header--compact">
+                  <div>
+                    <p className="section-kicker">Task notes</p>
+                    <h2>{state.notes.length} notes</h2>
+                  </div>
+                </div>
+
+                {state.notes.length > 0 ? (
+                  <ol className="journal-list journal-list--long">
+                    {state.notes.map((note) => (
+                      <li key={note.id}>
+                        <time>{formatDateTime(note.created_at)}</time>
+                        <p>{note.content}</p>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="empty-state">No task notes yet.</p>
+                )}
+
+                <form className="compact-form" onSubmit={(event) => void handleAddNote(event)}>
+                  <label>
+                    <span>Add note</span>
+                    <textarea
+                      onChange={(event) => setNoteContent(event.target.value)}
+                      placeholder="Capture task-specific context."
+                      rows={5}
+                      value={noteContent}
+                    />
+                  </label>
+                  <button className="button button--accent" disabled={isAddingNote} type="submit">
+                    {isAddingNote ? "Adding..." : "Add note"}
+                  </button>
+                </form>
+              </section>
+
+              <section className="task-experiment-create">
+                <p className="section-kicker">New experiment</p>
+                <form className="compact-form compact-form--flush" onSubmit={(event) => void handleRegisterExperiment(event)}>
+                  <label>
+                    <span>Title</span>
+                    <input
+                      onChange={(event) => setExperimentTitle(event.target.value)}
+                      placeholder="Scaling run 256 ranks"
+                      value={experimentTitle}
+                    />
+                  </label>
+                  <label>
+                    <span>Instruction</span>
+                    <textarea
+                      onChange={(event) => setExperimentInstruction(event.target.value)}
+                      placeholder="What this run should prove or disprove."
+                      rows={3}
+                      value={experimentInstruction}
+                    />
+                  </label>
+                  <label>
+                    <span>Status</span>
+                    <select
+                      onChange={(event) =>
+                        setExperimentStatus(event.target.value as ExperimentStatus)
+                      }
+                      value={experimentStatus}
+                    >
+                      {experimentStatusOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className="button button--ghost"
+                    disabled={isRegisteringExperiment}
+                    type="submit"
+                  >
+                    {isRegisteringExperiment ? "Registering..." : "Register experiment"}
+                  </button>
+                </form>
+              </section>
             </article>
 
             <article className="summary-card">
@@ -666,7 +793,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
               )}
             </article>
 
-            <article className="panel panel--stack">
+            <article className="panel panel--stack task-notes-panel--secondary">
               <div className="panel-header panel-header--compact">
                 <div>
                   <p className="section-kicker">Task notes</p>

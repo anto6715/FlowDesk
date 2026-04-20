@@ -795,6 +795,19 @@ textarea {
   margin-top: 1rem;
 }
 
+.task-notes-spotlight,
+.task-experiment-create {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(30, 27, 24, 0.08);
+}
+
+.task-notes-panel--secondary {
+  display: none;
+}
+
 .mini-title {
   margin: 0;
   font-weight: 800;
