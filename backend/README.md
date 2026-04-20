@@ -9,6 +9,7 @@ Current scope:
 - SQLite and Alembic baseline
 - domain schema for tasks, sessions, planning, experiments, notes, references, artifacts, and transitions
 - task/work-session services and routes
+- task work-session history read route
 - macro-activity and GitHub reference routes
 - experiment services and routes with state-transition history
 - scheduled-block services and routes with move/status history
@@ -25,6 +26,5 @@ uv run ruff check .
 uv run pytest
 ```
 
-The next backend-facing slices are richer read models for task detail, experiment detail,
-calendar feeds, and reports. The immediate product work is frontend integration for the
-existing API surface.
+The next backend-facing slices are report read models, backup/export/import, and richer
+detail read models if frontend drill-down starts duplicating too much client-side assembly.

@@ -29,6 +29,10 @@ interface GlobalTasksState {
   syncedAt: Date | null;
 }
 
+interface GlobalTasksPageProps {
+  onOpenTask: (taskId: string) => void;
+}
+
 const initialState: GlobalTasksState = {
   tasks: [],
   macroActivities: [],
@@ -94,7 +98,7 @@ function countByStatus(tasks: Task[], status: TaskStatus) {
   return tasks.filter((task) => task.status === status).length;
 }
 
-export function GlobalTasksPage() {
+export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
   const [state, setState] = useState<GlobalTasksState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -296,6 +300,7 @@ export function GlobalTasksPage() {
                 <th>GitHub</th>
                 <th>Waiting</th>
                 <th>Updated</th>
+                <th>Open</th>
               </tr>
             </thead>
             <tbody>
@@ -340,6 +345,15 @@ export function GlobalTasksPage() {
                     </td>
                     <td>{waitingLabel(task.waiting_reason)}</td>
                     <td>{formatDateTime(task.updated_at)}</td>
+                    <td>
+                      <button
+                        className="button button--ghost button--small"
+                        onClick={() => onOpenTask(task.id)}
+                        type="button"
+                      >
+                        Detail
+                      </button>
+                    </td>
                   </tr>
                 );
               })}

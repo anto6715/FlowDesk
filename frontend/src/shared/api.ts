@@ -306,6 +306,10 @@ export async function switchTask(fromTaskId: string, toTaskId: string): Promise<
   });
 }
 
+export async function listTaskWorkSessions(taskId: string): Promise<WorkSession[]> {
+  return request<WorkSession[]>(`/tasks/${taskId}/work-sessions`);
+}
+
 export async function listExperiments(options?: {
   task_id?: string | null;
   status?: ExperimentStatus | null;
@@ -366,6 +370,17 @@ export async function listJournalEntries(journalDay: string): Promise<Note[]> {
 
 export async function appendJournalEntry(journalDay: string, content: string): Promise<Note> {
   return request<Note>(`/journal/${journalDay}/entries`, {
+    method: "POST",
+    body: JSON.stringify({ content })
+  });
+}
+
+export async function listTaskNotes(taskId: string): Promise<Note[]> {
+  return request<Note[]>(`/tasks/${taskId}/notes`);
+}
+
+export async function addTaskNote(taskId: string, content: string): Promise<Note> {
+  return request<Note>(`/tasks/${taskId}/notes`, {
     method: "POST",
     body: JSON.stringify({ content })
   });

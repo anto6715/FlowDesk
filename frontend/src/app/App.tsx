@@ -5,8 +5,9 @@ import { ExperimentsPage } from "../features/experiments/ExperimentsPage";
 import { HomePage } from "../features/home/HomePage";
 import { JournalPage } from "../features/journal/JournalPage";
 import { GlobalTasksPage } from "../features/tasks/GlobalTasksPage";
+import { TaskDetailPage } from "../features/tasks/TaskDetailPage";
 
-type AppView = "today" | "tasks" | "experiments" | "journal" | "calendar";
+type AppView = "today" | "tasks" | "task-detail" | "experiments" | "journal" | "calendar";
 
 const appViews: Array<{ value: AppView; label: string }> = [
   { value: "today", label: "Today" },
@@ -18,6 +19,12 @@ const appViews: Array<{ value: AppView; label: string }> = [
 
 export function App() {
   const [activeView, setActiveView] = useState<AppView>("today");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  function openTaskDetail(taskId: string) {
+    setSelectedTaskId(taskId);
+    setActiveView("task-detail");
+  }
 
   return (
     <>
@@ -36,7 +43,15 @@ export function App() {
         </nav>
       </header>
       {activeView === "today" ? <HomePage /> : null}
-      {activeView === "tasks" ? <GlobalTasksPage /> : null}
+      {activeView === "tasks" ? <GlobalTasksPage onOpenTask={openTaskDetail} /> : null}
+      {activeView === "task-detail" && selectedTaskId !== null ? (
+        <TaskDetailPage
+          onBack={() => {
+            setActiveView("tasks");
+          }}
+          taskId={selectedTaskId}
+        />
+      ) : null}
       {activeView === "experiments" ? <ExperimentsPage /> : null}
       {activeView === "journal" ? <JournalPage /> : null}
       {activeView === "calendar" ? <CalendarPage /> : null}

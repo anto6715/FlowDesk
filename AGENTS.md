@@ -27,10 +27,12 @@
 - Reference-aware task creation UI committed in `e4dc2b0`
 - Global Tasks navigation view committed in `ebc9aed`
 - Dedicated operational views committed in `7cbe422`
+- Task work-session read API committed in `7a10795`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
   - task timing routes
+  - task work-session history read route
   - macro-activity routes
   - GitHub reference routes
   - experiment registry routes with state-transition history
@@ -46,6 +48,7 @@
   - richer task creation with macro-activity and GitHub reference selection/creation
   - app-level navigation with a dense `Global Tasks` view
   - dedicated `Experiments`, `Journal`, and `Calendar` views
+  - task detail workspace with references, sessions, linked experiments, planned blocks, and notes
   - Vite proxy to the backend `/api`
   - verified production build with `npm run build`
 
@@ -83,10 +86,10 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. Add richer task detail UI with notes, references, sessions, and linked experiments
-2. Add report read models and reporting UI
-3. Add backup/export/import baseline
-4. Add task and experiment detail read models on the backend if UI drill-down needs denormalized payloads
+1. Add report read models and reporting UI
+2. Add backup/export/import baseline
+3. Add experiment detail notes/artifacts UI
+4. Replace local view switching with URL-backed routing when navigation state needs deep links
 
 ## Commit guidance
 

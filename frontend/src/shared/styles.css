@@ -133,6 +133,13 @@ body {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.detail-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  align-items: start;
+}
+
 .summary-card,
 .panel,
 .task-card {
@@ -354,6 +361,11 @@ body {
   margin-top: 1.2rem;
 }
 
+.action-row--top {
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+}
+
 .button,
 input,
 textarea,
@@ -466,6 +478,10 @@ textarea {
 .operations-grid--journal,
 .operations-grid--calendar {
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+}
+
+.operations-grid--detail {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .panel--wide {
@@ -617,6 +633,33 @@ textarea {
 .mini-title {
   margin: 0;
   font-weight: 800;
+}
+
+.reference-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.reference-list div {
+  padding: 0.95rem;
+  border: 1px solid rgba(30, 27, 24, 0.07);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.reference-list span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.reference-list strong {
+  display: block;
+  overflow-wrap: anywhere;
 }
 
 .inline-grid {
@@ -796,7 +839,9 @@ textarea {
 
 @media (max-width: 1024px) {
   .summary-grid,
-  .summary-grid--tasks {
+  .summary-grid--tasks,
+  .detail-grid,
+  .operations-grid--detail {
     grid-template-columns: 1fr;
   }
 
