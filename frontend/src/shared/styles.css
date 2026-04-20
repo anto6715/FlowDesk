@@ -765,6 +765,32 @@ textarea {
   background: rgba(255, 255, 255, 0.34);
 }
 
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border: 1px solid rgba(30, 27, 24, 0.08);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.segmented-control__item {
+  border: 0;
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
+.segmented-control__item--active {
+  background: var(--accent);
+  color: white;
+}
+
 .metadata-form {
   margin-top: 1rem;
 }

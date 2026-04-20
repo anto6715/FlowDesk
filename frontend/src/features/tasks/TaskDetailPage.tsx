@@ -20,6 +20,7 @@ import {
   type TaskPriority,
   type WorkSession
 } from "../../shared/api";
+import { parseGitHubIssueOrPullUrl } from "../../shared/github";
 
 interface TaskDetailPageProps {
   taskId: string;
@@ -60,6 +61,7 @@ interface MetadataFormState {
   priority: TaskPriority;
   macroActivityId: string;
   githubReferenceId: string;
+  githubEntryMode: "url" | "manual";
   githubRepositoryFullName: string;
   githubIssueNumber: string;
   githubIssueUrl: string;
@@ -72,6 +74,7 @@ const initialMetadataForm: MetadataFormState = {
   priority: "normal",
   macroActivityId: "",
   githubReferenceId: "",
+  githubEntryMode: "url",
   githubRepositoryFullName: "",
   githubIssueNumber: "",
   githubIssueUrl: "",
@@ -120,7 +123,10 @@ function formatGitHubReference(reference: GitHubReference) {
   return `${reference.repository_full_name}#${reference.issue_number}${title}`;
 }
 
-function buildMetadataForm(task: Task | null, githubReference: GitHubReference | null) {
+function buildMetadataForm(
+  task: Task | null,
+  githubReference: GitHubReference | null
+): MetadataFormState {
   if (task === null) {
     return initialMetadataForm;
   }
@@ -131,6 +137,7 @@ function buildMetadataForm(task: Task | null, githubReference: GitHubReference |
     priority: task.priority,
     macroActivityId: task.macro_activity_id ?? "",
     githubReferenceId: task.github_reference_id ?? "",
+    githubEntryMode: "url",
     githubRepositoryFullName: githubReference?.repository_full_name ?? "",
     githubIssueNumber: githubReference ? String(githubReference.issue_number) : "",
     githubIssueUrl: githubReference?.issue_url ?? "",
@@ -223,6 +230,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
     setMetadataForm((current) => ({
       ...current,
       githubReferenceId: referenceId,
+      githubEntryMode: "url",
       githubRepositoryFullName: reference?.repository_full_name ?? "",
       githubIssueNumber: reference ? String(reference.issue_number) : "",
       githubIssueUrl: reference?.issue_url ?? "",
@@ -246,32 +254,45 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
       if (githubReferenceId !== null) {
         const selectedReference =
           state.githubReferences.find((reference) => reference.id === githubReferenceId) ?? null;
-        const issueNumber = Number.parseInt(metadataForm.githubIssueNumber, 10);
+        const parsedReference =
+          metadataForm.githubEntryMode === "url"
+            ? parseGitHubIssueOrPullUrl(metadataForm.githubIssueUrl)
+            : null;
+        const repositoryFullName =
+          parsedReference?.repositoryFullName ??
+          metadataForm.githubRepositoryFullName.trim();
+        const issueNumber =
+          parsedReference?.issueNumber ??
+          Number.parseInt(metadataForm.githubIssueNumber, 10);
+        const issueUrl =
+          parsedReference?.issueUrl ||
+          metadataForm.githubIssueUrl.trim() ||
+          `https://github.com/${repositoryFullName}/issues/${issueNumber}`;
 
-        if (metadataForm.githubRepositoryFullName.trim().length === 0) {
+        if (repositoryFullName.length === 0) {
           setError("GitHub repository is required.");
           return;
         }
-        if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
-          setError("GitHub issue number must be a positive integer.");
+        if (metadataForm.githubEntryMode === "url" && parsedReference === null) {
+          setError("Paste a valid GitHub issue or pull request URL.");
           return;
         }
-        if (metadataForm.githubIssueUrl.trim().length === 0) {
-          setError("GitHub issue URL is required.");
+        if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
+          setError("GitHub issue or PR number must be a positive integer.");
           return;
         }
 
         if (
           selectedReference === null ||
-          selectedReference.repository_full_name !== metadataForm.githubRepositoryFullName.trim() ||
+          selectedReference.repository_full_name !== repositoryFullName ||
           selectedReference.issue_number !== issueNumber ||
-          selectedReference.issue_url !== metadataForm.githubIssueUrl.trim() ||
+          selectedReference.issue_url !== issueUrl ||
           (selectedReference.cached_title ?? "") !== metadataForm.githubCachedTitle.trim()
         ) {
           await updateGitHubReference(githubReferenceId, {
-            repository_full_name: metadataForm.githubRepositoryFullName.trim(),
+            repository_full_name: repositoryFullName,
             issue_number: issueNumber,
-            issue_url: metadataForm.githubIssueUrl.trim(),
+            issue_url: issueUrl,
             cached_title: metadataForm.githubCachedTitle.trim() || null
           });
         }
@@ -469,44 +490,83 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 </label>
                 {selectedGithubReference ? (
                   <div className="embedded-form-grid">
-                    <label>
-                      <span>Repository</span>
-                      <input
-                        onChange={(event) =>
+                    <div className="segmented-control">
+                      <button
+                        className={
+                          metadataForm.githubEntryMode === "url"
+                            ? "segmented-control__item segmented-control__item--active"
+                            : "segmented-control__item"
+                        }
+                        onClick={() =>
                           setMetadataForm((current) => ({
                             ...current,
-                            githubRepositoryFullName: event.target.value
+                            githubEntryMode: "url"
                           }))
                         }
-                        value={metadataForm.githubRepositoryFullName}
-                      />
-                    </label>
-                    <label>
-                      <span>Issue</span>
-                      <input
-                        min="1"
-                        onChange={(event) =>
+                        type="button"
+                      >
+                        Paste URL
+                      </button>
+                      <button
+                        className={
+                          metadataForm.githubEntryMode === "manual"
+                            ? "segmented-control__item segmented-control__item--active"
+                            : "segmented-control__item"
+                        }
+                        onClick={() =>
                           setMetadataForm((current) => ({
                             ...current,
-                            githubIssueNumber: event.target.value
+                            githubEntryMode: "manual"
                           }))
                         }
-                        type="number"
-                        value={metadataForm.githubIssueNumber}
-                      />
-                    </label>
-                    <label>
-                      <span>Issue URL</span>
-                      <input
-                        onChange={(event) =>
-                          setMetadataForm((current) => ({
-                            ...current,
-                            githubIssueUrl: event.target.value
-                          }))
-                        }
-                        value={metadataForm.githubIssueUrl}
-                      />
-                    </label>
+                        type="button"
+                      >
+                        Manual
+                      </button>
+                    </div>
+                    {metadataForm.githubEntryMode === "url" ? (
+                      <label>
+                        <span>GitHub issue or PR URL</span>
+                        <input
+                          onChange={(event) =>
+                            setMetadataForm((current) => ({
+                              ...current,
+                              githubIssueUrl: event.target.value
+                            }))
+                          }
+                          value={metadataForm.githubIssueUrl}
+                        />
+                      </label>
+                    ) : (
+                      <>
+                        <label>
+                          <span>Repository</span>
+                          <input
+                            onChange={(event) =>
+                              setMetadataForm((current) => ({
+                                ...current,
+                                githubRepositoryFullName: event.target.value
+                              }))
+                            }
+                            value={metadataForm.githubRepositoryFullName}
+                          />
+                        </label>
+                        <label>
+                          <span>Issue or PR number</span>
+                          <input
+                            min="1"
+                            onChange={(event) =>
+                              setMetadataForm((current) => ({
+                                ...current,
+                                githubIssueNumber: event.target.value
+                              }))
+                            }
+                            type="number"
+                            value={metadataForm.githubIssueNumber}
+                          />
+                        </label>
+                      </>
+                    )}
                     <label>
                       <span>Title</span>
                       <input

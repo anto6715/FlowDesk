@@ -21,6 +21,7 @@ import {
   type TaskStatus,
   type WaitingReason
 } from "../../shared/api";
+import { parseGitHubIssueOrPullUrl } from "../../shared/github";
 
 type TaskStatusFilter = "open" | TaskStatus;
 type PriorityFilter = "all" | TaskPriority;
@@ -53,6 +54,7 @@ interface MacroActivityFormState {
 }
 
 interface GitHubReferenceFormState {
+  entryMode: "url" | "manual";
   repositoryFullName: string;
   issueNumber: string;
   issueUrl: string;
@@ -154,6 +156,7 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
   });
   const [githubReferenceForm, setGitHubReferenceForm] =
     useState<GitHubReferenceFormState>({
+      entryMode: "url",
       repositoryFullName: "",
       issueNumber: "",
       issueUrl: "",
@@ -281,24 +284,37 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
         githubReferenceId = createGitHubReferenceId;
       }
       if (createGitHubReferenceMode === "new") {
-        const repositoryFullName = githubReferenceForm.repositoryFullName.trim();
-        const issueNumber = Number.parseInt(githubReferenceForm.issueNumber, 10);
+        const parsedReference =
+          githubReferenceForm.entryMode === "url"
+            ? parseGitHubIssueOrPullUrl(githubReferenceForm.issueUrl)
+            : null;
+        const repositoryFullName =
+          parsedReference?.repositoryFullName ?? githubReferenceForm.repositoryFullName.trim();
+        const issueNumber =
+          parsedReference?.issueNumber ??
+          Number.parseInt(githubReferenceForm.issueNumber, 10);
+        const issueUrl =
+          parsedReference?.issueUrl ||
+          githubReferenceForm.issueUrl.trim() ||
+          inferGitHubIssueUrl(repositoryFullName, issueNumber);
 
         if (repositoryFullName.length === 0) {
           setError("GitHub repository is required.");
           return;
         }
+        if (githubReferenceForm.entryMode === "url" && parsedReference === null) {
+          setError("Paste a valid GitHub issue or pull request URL.");
+          return;
+        }
         if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
-          setError("GitHub issue number must be a positive integer.");
+          setError("GitHub issue or PR number must be a positive integer.");
           return;
         }
 
         const reference = await createGitHubReference({
           repository_full_name: repositoryFullName,
           issue_number: issueNumber,
-          issue_url:
-            githubReferenceForm.issueUrl.trim() ||
-            inferGitHubIssueUrl(repositoryFullName, issueNumber),
+          issue_url: issueUrl,
           cached_title: githubReferenceForm.cachedTitle.trim() || undefined
         });
         githubReferenceId = reference.id;
@@ -325,6 +341,7 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
         colorHex: macroActivityForm.colorHex
       });
       setGitHubReferenceForm({
+        entryMode: "url",
         repositoryFullName: "",
         issueNumber: "",
         issueUrl: "",
@@ -512,34 +529,80 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
           ) : null}
           {createGitHubReferenceMode === "new" ? (
             <div className="embedded-form-grid">
-              <label>
-                <span>Repository</span>
-                <input
-                  onChange={(event) =>
-                    setGitHubReferenceForm((current) => ({
-                      ...current,
-                      repositoryFullName: event.target.value
-                    }))
+              <div className="segmented-control">
+                <button
+                  className={
+                    githubReferenceForm.entryMode === "url"
+                      ? "segmented-control__item segmented-control__item--active"
+                      : "segmented-control__item"
                   }
-                  placeholder="org/project"
-                  value={githubReferenceForm.repositoryFullName}
-                />
-              </label>
-              <label>
-                <span>Issue</span>
-                <input
-                  min="1"
-                  onChange={(event) =>
-                    setGitHubReferenceForm((current) => ({
-                      ...current,
-                      issueNumber: event.target.value
-                    }))
+                  onClick={() =>
+                    setGitHubReferenceForm((current) => ({ ...current, entryMode: "url" }))
                   }
-                  placeholder="42"
-                  type="number"
-                  value={githubReferenceForm.issueNumber}
-                />
-              </label>
+                  type="button"
+                >
+                  Paste URL
+                </button>
+                <button
+                  className={
+                    githubReferenceForm.entryMode === "manual"
+                      ? "segmented-control__item segmented-control__item--active"
+                      : "segmented-control__item"
+                  }
+                  onClick={() =>
+                    setGitHubReferenceForm((current) => ({ ...current, entryMode: "manual" }))
+                  }
+                  type="button"
+                >
+                  Manual
+                </button>
+              </div>
+              {githubReferenceForm.entryMode === "url" ? (
+                <label>
+                  <span>GitHub issue or PR URL</span>
+                  <input
+                    onChange={(event) =>
+                      setGitHubReferenceForm((current) => ({
+                        ...current,
+                        issueUrl: event.target.value
+                      }))
+                    }
+                    placeholder="https://github.com/org/project/issues/42"
+                    value={githubReferenceForm.issueUrl}
+                  />
+                </label>
+              ) : (
+                <>
+                  <label>
+                    <span>Repository</span>
+                    <input
+                      onChange={(event) =>
+                        setGitHubReferenceForm((current) => ({
+                          ...current,
+                          repositoryFullName: event.target.value
+                        }))
+                      }
+                      placeholder="org/project"
+                      value={githubReferenceForm.repositoryFullName}
+                    />
+                  </label>
+                  <label>
+                    <span>Issue or PR number</span>
+                    <input
+                      min="1"
+                      onChange={(event) =>
+                        setGitHubReferenceForm((current) => ({
+                          ...current,
+                          issueNumber: event.target.value
+                        }))
+                      }
+                      placeholder="42"
+                      type="number"
+                      value={githubReferenceForm.issueNumber}
+                    />
+                  </label>
+                </>
+              )}
               <label>
                 <span>Title</span>
                 <input
@@ -551,19 +614,6 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
                   }
                   placeholder="Optional"
                   value={githubReferenceForm.cachedTitle}
-                />
-              </label>
-              <label>
-                <span>Issue URL</span>
-                <input
-                  onChange={(event) =>
-                    setGitHubReferenceForm((current) => ({
-                      ...current,
-                      issueUrl: event.target.value
-                    }))
-                  }
-                  placeholder="Auto-filled if left blank"
-                  value={githubReferenceForm.issueUrl}
                 />
               </label>
             </div>
