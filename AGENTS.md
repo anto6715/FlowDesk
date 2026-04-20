@@ -28,6 +28,7 @@
 - Global Tasks navigation view committed in `ebc9aed`
 - Dedicated operational views committed in `7cbe422`
 - Task work-session read API committed in `7a10795`
+- Task detail workspace UI committed in `a005681`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
