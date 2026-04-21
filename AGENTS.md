@@ -41,6 +41,7 @@
 - UX redesign plan committed in `b5eb63d`
 - UX redesign Point 1 shell/hidden-action foundation committed in `1ec4268`
 - UX redesign Point 2 redesigned Home cockpit committed in `7160403`
+- UX redesign Point 3 shared frontend form components committed in `980f66a`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
@@ -58,6 +59,7 @@
   - redesigned `Home` focused on active task, recent journal notes, compact next-up context, and dialog-based quick actions
   - local API client for task flows
   - local API client coverage for experiments, scheduled blocks, and journal entries
+  - shared frontend components for task creation, experiment registration, task selection, GitHub URL-first entry, and quick-action dialogs
   - Home quick actions for task, note, and experiment creation
   - task and journal note creation with optional task links for daily journal entries
   - task creation with inline macro-activity and URL-first GitHub reference selection/creation

@@ -16,8 +16,9 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 
 - Point 1 completed in `1ec4268`.
 - Point 2 completed in `7160403`.
-- Point 3 has not started.
-- Ask the user before starting Point 3.
+- Point 3 completed in `980f66a`.
+- Point 4 has not started.
+- Ask the user before starting Point 4.
 
 ## Redesign goals
 
@@ -62,6 +63,8 @@ Acceptance:
 - `+ Task`, `+ Note`, and `+ Experiment` are available without dominating the screen.
 
 ### Point 3. Shared form and action components
+
+Status: completed in `980f66a`.
 
 Scope:
 
