@@ -223,6 +223,14 @@ body {
   box-shadow: none;
 }
 
+.task-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .home-toolbar,
 .journal-actions {
   display: flex;
@@ -378,11 +386,81 @@ body {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.task-count-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.task-count-strip article {
+  min-width: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: rgba(255, 250, 241, 0.66);
+}
+
+.task-count-strip span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.task-count-strip .big-number {
+  font-size: clamp(1.8rem, 4vw, 2.75rem);
+}
+
 .detail-grid {
   display: grid;
   gap: 1.25rem;
   grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
   align-items: start;
+}
+
+.task-detail-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.task-detail-main,
+.task-detail-side {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.task-detail-side .panel {
+  margin-top: 0;
+}
+
+.task-summary-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.task-overview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.task-notes-board {
+  margin-top: 0;
+}
+
+.task-note-composer {
+  padding: 1rem;
+  border: 1px solid rgba(30, 27, 24, 0.07);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.38);
 }
 
 .summary-card,
@@ -1138,7 +1216,7 @@ textarea {
 
 .task-table {
   width: 100%;
-  min-width: 980px;
+  min-width: 760px;
   border-collapse: collapse;
 }
 
@@ -1171,6 +1249,26 @@ textarea {
 
 .task-table .pill {
   margin-top: 0;
+}
+
+.task-title-button {
+  display: inline;
+  max-width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.task-title-button:hover {
+  color: var(--accent);
+  text-decoration: underline;
 }
 
 .table-actions {
@@ -1293,6 +1391,16 @@ textarea {
     width: 100%;
   }
 
+  .task-hero-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .task-hero-actions .button,
+  .task-hero-actions .sync-chip {
+    width: 100%;
+  }
+
   .home-action-group {
     width: 100%;
   }
@@ -1328,8 +1436,10 @@ textarea {
 @media (max-width: 1024px) {
   .summary-grid,
   .summary-grid--tasks,
+  .task-count-strip,
   .home-dashboard-grid,
   .detail-grid,
+  .task-detail-workspace,
   .operations-grid--detail {
     grid-template-columns: 1fr;
   }

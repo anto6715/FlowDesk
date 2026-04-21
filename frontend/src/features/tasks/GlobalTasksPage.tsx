@@ -18,7 +18,7 @@ import {
   type TaskStatus,
   type WaitingReason
 } from "../../shared/api";
-import { formatGitHubReference, TaskCreateForm } from "../../shared/forms";
+import { formatGitHubReference, QuickActionDialog, TaskCreateForm } from "../../shared/forms";
 
 type TaskStatusFilter = "open" | TaskStatus;
 type PriorityFilter = "all" | TaskPriority;
@@ -104,6 +104,7 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
   const [waitingFilter, setWaitingFilter] = useState<WaitingFilter>("all");
   const [macroActivityFilter, setMacroActivityFilter] = useState("all");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const deferredQuery = useDeferredValue(query);
 
   async function loadGlobalTasks() {
@@ -185,60 +186,48 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
 
   return (
     <main className="page-shell">
-      <section className="hero hero--compact">
+      <section className="hero hero--compact task-page-hero">
         <div>
           <p className="eyebrow">Global tasks</p>
           <h1>Task load</h1>
         </div>
-        <div className="sync-chip">
-          <span>{isLoading ? "Loading..." : "Local task index"}</span>
-          <strong>{state.syncedAt ? formatDateTime(state.syncedAt.toISOString()) : "Sync pending"}</strong>
+        <div className="task-hero-actions">
+          <div className="sync-chip sync-chip--quiet">
+            <span>{isLoading ? "Loading..." : "Local task index"}</span>
+            <strong>
+              {state.syncedAt ? formatDateTime(state.syncedAt.toISOString()) : "Sync pending"}
+            </strong>
+          </div>
+          <button
+            className="button button--accent button--round"
+            onClick={() => setIsCreateDialogOpen(true)}
+            type="button"
+          >
+            + Task
+          </button>
         </div>
       </section>
 
-      <section className="summary-grid summary-grid--tasks" aria-label="Global task counts">
-        <article className="summary-card">
-          <p className="section-kicker">Open</p>
+      <section className="task-count-strip" aria-label="Global task counts">
+        <article>
+          <span>Open</span>
           <strong className="big-number">
             {state.tasks.filter((task) => !["done", "archived"].includes(task.status)).length}
           </strong>
         </article>
-        <article className="summary-card">
-          <p className="section-kicker">Waiting</p>
+        <article>
+          <span>Waiting</span>
           <strong className="big-number">{countByStatus(state.tasks, "waiting")}</strong>
         </article>
-        <article className="summary-card">
-          <p className="section-kicker">Urgent</p>
+        <article>
+          <span>Urgent</span>
           <strong className="big-number">
             {state.tasks.filter((task) => task.priority === "urgent").length}
           </strong>
         </article>
       </section>
 
-      <section className="panel panel--wide">
-        <div className="panel-header">
-          <div>
-            <p className="section-kicker">Create task</p>
-            <h2>New task</h2>
-          </div>
-        </div>
-
-        <TaskCreateForm
-          className="create-form create-form--tasks"
-          githubReferences={state.githubReferences}
-          macroActivities={state.macroActivities}
-          onCreateTask={async (input) => {
-            await createTask(input);
-          }}
-          onCreated={() => {
-            void loadGlobalTasks();
-          }}
-          onError={setError}
-          unavailableGithubReferenceIds={usedGithubReferenceIds}
-        />
-      </section>
-
-      <section className="panel panel--wide">
+      <section className="panel panel--wide task-list-panel">
         <div className="panel-header">
           <div>
             <p className="section-kicker">Task index</p>
@@ -316,11 +305,8 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
             <thead>
               <tr>
                 <th>Task</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Macro</th>
-                <th>GitHub</th>
-                <th>Waiting</th>
+                <th>State</th>
+                <th>References</th>
                 <th>Updated</th>
                 <th>Open</th>
               </tr>
@@ -337,35 +323,43 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
                 return (
                   <tr key={task.id}>
                     <td>
-                      <strong>{task.title}</strong>
+                      <button
+                        className="task-title-button"
+                        onClick={() => onOpenTask(task.id)}
+                        type="button"
+                      >
+                        {task.title}
+                      </button>
                       <span>{task.description || "No description"}</span>
                     </td>
                     <td>
-                      <span className={`pill pill--${task.status}`}>
-                        {statusLabel(task.status)}
-                      </span>
+                      <div className="pill-row pill-row--tight">
+                        <span className={`pill pill--${task.status}`}>
+                          {statusLabel(task.status)}
+                        </span>
+                        <span className={`pill pill--priority-${task.priority}`}>
+                          {task.priority}
+                        </span>
+                      </div>
+                      <span>Waiting: {waitingLabel(task.waiting_reason)}</span>
                     </td>
                     <td>
-                      <span className={`pill pill--priority-${task.priority}`}>
-                        {task.priority}
+                      <span>{macroActivity?.name ?? "No macro-activity"}</span>
+                      <span>
+                        {githubReference ? (
+                          <a
+                            className="text-link"
+                            href={githubReference.issue_url}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {formatGitHubReference(githubReference)}
+                          </a>
+                        ) : (
+                          "No GitHub reference"
+                        )}
                       </span>
                     </td>
-                    <td>{macroActivity?.name ?? "None"}</td>
-                    <td>
-                      {githubReference ? (
-                        <a
-                          className="text-link"
-                          href={githubReference.issue_url}
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          {formatGitHubReference(githubReference)}
-                        </a>
-                      ) : (
-                        "None"
-                      )}
-                    </td>
-                    <td>{waitingLabel(task.waiting_reason)}</td>
                     <td>{formatDateTime(task.updated_at)}</td>
                     <td>
                       <button
@@ -383,6 +377,30 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
           </table>
         </div>
       </section>
+
+      {isCreateDialogOpen ? (
+        <QuickActionDialog
+          kicker="Create task"
+          onClose={() => setIsCreateDialogOpen(false)}
+          title="New task"
+          wide
+        >
+          <TaskCreateForm
+            githubReferences={state.githubReferences}
+            macroActivities={state.macroActivities}
+            onCancel={() => setIsCreateDialogOpen(false)}
+            onCreateTask={async (input) => {
+              await createTask(input);
+            }}
+            onCreated={() => {
+              setIsCreateDialogOpen(false);
+              void loadGlobalTasks();
+            }}
+            onError={setError}
+            unavailableGithubReferenceIds={usedGithubReferenceIds}
+          />
+        </QuickActionDialog>
+      ) : null}
     </main>
   );
 }

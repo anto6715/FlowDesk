@@ -21,7 +21,7 @@ import {
   type TaskPriority,
   type WorkSession
 } from "../../shared/api";
-import { ExperimentCreateForm, formatGitHubReference } from "../../shared/forms";
+import { ExperimentCreateForm, formatGitHubReference, QuickActionDialog } from "../../shared/forms";
 import { parseGitHubIssueOrPullUrl } from "../../shared/github";
 
 interface TaskDetailPageProps {
@@ -158,6 +158,8 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
   const [metadataForm, setMetadataForm] =
     useState<MetadataFormState>(initialMetadataForm);
   const [noteContent, setNoteContent] = useState("");
+  const [isMetadataDialogOpen, setIsMetadataDialogOpen] = useState(false);
+  const [isExperimentDialogOpen, setIsExperimentDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function loadTaskDetail() {
@@ -303,6 +305,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
         github_reference_id: githubReferenceId
       });
       await loadTaskDetail();
+      setIsMetadataDialogOpen(false);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Failed to update task.");
     } finally {
@@ -348,49 +351,82 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
 
   return (
     <main className="page-shell">
-      <section className="hero hero--compact">
+      <section className="hero hero--compact task-detail-hero">
         <div>
           <p className="eyebrow">Task detail</p>
           <h1>{task?.title ?? "Task"}</h1>
         </div>
-        <div className="sync-chip">
-          <span>{isLoading ? "Loading..." : "Task workspace"}</span>
-          <strong>{state.syncedAt ? formatDateTime(state.syncedAt.toISOString()) : "Sync pending"}</strong>
+        <div className="task-hero-actions">
+          <button className="button button--ghost" onClick={onBack} type="button">
+            Back to tasks
+          </button>
+          <div className="sync-chip sync-chip--quiet">
+            <span>{isLoading ? "Loading..." : "Task workspace"}</span>
+            <strong>
+              {state.syncedAt ? formatDateTime(state.syncedAt.toISOString()) : "Sync pending"}
+            </strong>
+          </div>
         </div>
       </section>
-
-      <div className="action-row action-row--top">
-        <button className="button button--ghost" onClick={onBack} type="button">
-          Back to tasks
-        </button>
-      </div>
 
       {error ? <div className="banner banner--error">{error}</div> : null}
       {isLoading ? <div className="banner">Loading task detail...</div> : null}
 
       {task ? (
         <>
-          <section className="detail-grid">
-            <article className="summary-card summary-card--spotlight">
-              <p className="section-kicker">Summary</p>
-              <h2>{task.title}</h2>
-              <p className="summary-copy">{task.description || "No description yet."}</p>
-              <div className="pill-row">
-                <span className={`pill pill--${task.status}`}>{statusLabel(task.status)}</span>
-                <span className={`pill pill--priority-${task.priority}`}>{task.priority}</span>
-              </div>
-              <div className="context-row">
-                <span>Waiting: {statusLabel(task.waiting_reason)}</span>
-                <span>Created: {formatDateTime(task.created_at)}</span>
-                <span>Updated: {formatDateTime(task.updated_at)}</span>
-              </div>
-              <section className="task-notes-spotlight">
-                <div className="panel-header panel-header--compact">
+          <section className="task-detail-workspace">
+            <div className="task-detail-main">
+              <article className="summary-card summary-card--spotlight task-summary-card">
+                <p className="section-kicker">Summary</p>
+                <h2>{task.title}</h2>
+                <p className="summary-copy">{task.description || "No description yet."}</p>
+                <div className="pill-row">
+                  <span className={`pill pill--${task.status}`}>{statusLabel(task.status)}</span>
+                  <span className={`pill pill--priority-${task.priority}`}>{task.priority}</span>
+                </div>
+                <div className="task-overview-actions">
+                  <button
+                    className="button button--accent"
+                    onClick={() => setIsExperimentDialogOpen(true)}
+                    type="button"
+                  >
+                    + Experiment
+                  </button>
+                  <button
+                    className="button button--ghost"
+                    onClick={() => setIsMetadataDialogOpen(true)}
+                    type="button"
+                  >
+                    Edit details
+                  </button>
+                </div>
+              </article>
+
+              <article className="panel panel--stack task-notes-board">
+                <div className="panel-header">
                   <div>
                     <p className="section-kicker">Task notes</p>
                     <h2>{state.notes.length} notes</h2>
                   </div>
                 </div>
+
+                <form
+                  className="compact-form compact-form--flush task-note-composer"
+                  onSubmit={(event) => void handleAddNote(event)}
+                >
+                  <label>
+                    <span>Add note</span>
+                    <textarea
+                      onChange={(event) => setNoteContent(event.target.value)}
+                      placeholder="Capture task-specific context."
+                      rows={6}
+                      value={noteContent}
+                    />
+                  </label>
+                  <button className="button button--accent" disabled={isAddingNote} type="submit">
+                    {isAddingNote ? "Adding..." : "Add note"}
+                  </button>
+                </form>
 
                 {state.notes.length > 0 ? (
                   <ol className="journal-list journal-list--long">
@@ -407,63 +443,157 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 ) : (
                   <p className="empty-state">No task notes yet.</p>
                 )}
+              </article>
+            </div>
 
-                <form className="compact-form" onSubmit={(event) => void handleAddNote(event)}>
-                  <label>
-                    <span>Add note</span>
-                    <textarea
-                      onChange={(event) => setNoteContent(event.target.value)}
-                      placeholder="Capture task-specific context."
-                      rows={5}
-                      value={noteContent}
-                    />
-                  </label>
-                  <button className="button button--accent" disabled={isAddingNote} type="submit">
-                    {isAddingNote ? "Adding..." : "Add note"}
+            <aside className="task-detail-side">
+              <article className="panel panel--stack task-context-panel">
+                <div className="panel-header panel-header--compact">
+                  <div>
+                    <p className="section-kicker">Context</p>
+                    <h2>Details</h2>
+                  </div>
+                </div>
+                <div className="reference-list">
+                  <div>
+                    <span>Status</span>
+                    <strong>{statusLabel(task.status)}</strong>
+                  </div>
+                  <div>
+                    <span>Priority</span>
+                    <strong>{task.priority}</strong>
+                  </div>
+                  <div>
+                    <span>Waiting</span>
+                    <strong>{statusLabel(task.waiting_reason)}</strong>
+                  </div>
+                  <div>
+                    <span>Macro-activity</span>
+                    <strong>{state.macroActivity?.name ?? "None"}</strong>
+                  </div>
+                  <div>
+                    <span>GitHub</span>
+                    {state.githubReference ? (
+                      <a
+                        className="text-link"
+                        href={state.githubReference.issue_url}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {formatGitHubReference(state.githubReference)}
+                      </a>
+                    ) : (
+                      <strong>None</strong>
+                    )}
+                  </div>
+                  <div>
+                    <span>Created</span>
+                    <strong>{formatDateTime(task.created_at)}</strong>
+                  </div>
+                  <div>
+                    <span>Updated</span>
+                    <strong>{formatDateTime(task.updated_at)}</strong>
+                  </div>
+                </div>
+              </article>
+
+              <article className="panel panel--stack">
+                <div className="panel-header panel-header--compact">
+                  <div>
+                    <p className="section-kicker">Experiments</p>
+                    <h2>{state.experiments.length} linked runs</h2>
+                  </div>
+                  <button
+                    className="button button--ghost button--small"
+                    onClick={() => setIsExperimentDialogOpen(true)}
+                    type="button"
+                  >
+                    + Experiment
                   </button>
-                </form>
-              </section>
-
-              <section className="task-experiment-create">
-                <p className="section-kicker">New experiment</p>
-                <ExperimentCreateForm
-                  buttonVariant="ghost"
-                  fixedTaskId={task.id}
-                  onError={setError}
-                  onRegister={async (input) => {
-                    await registerExperiment(input);
-                  }}
-                  onRegistered={() => {
-                    void loadTaskDetail();
-                  }}
-                />
-              </section>
-            </article>
-
-            <article className="summary-card">
-              <p className="section-kicker">References</p>
-              <div className="reference-list">
-                <div>
-                  <span>Macro-activity</span>
-                  <strong>{state.macroActivity?.name ?? "None"}</strong>
                 </div>
-                <div>
-                  <span>GitHub</span>
-                  {state.githubReference ? (
-                    <a
-                      className="text-link"
-                      href={state.githubReference.issue_url}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      {formatGitHubReference(state.githubReference)}
-                    </a>
-                  ) : (
-                    <strong>None</strong>
-                  )}
+                {state.experiments.length > 0 ? (
+                  <ul className="entity-list">
+                    {state.experiments.map((experiment) => (
+                      <li className="entity-row" key={experiment.id}>
+                        <div>
+                          <strong>{experiment.title}</strong>
+                          <span>{experiment.instruction || "No instruction"}</span>
+                        </div>
+                        <span className={`pill pill--${experiment.status}`}>
+                          {experiment.status}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">No experiments linked to this task.</p>
+                )}
+              </article>
+
+              <article className="panel panel--stack">
+                <div className="panel-header panel-header--compact">
+                  <div>
+                    <p className="section-kicker">Planned blocks</p>
+                    <h2>{state.scheduledBlocks.length} blocks</h2>
+                  </div>
                 </div>
-              </div>
-              <form className="compact-form metadata-form" onSubmit={(event) => void handleSaveMetadata(event)}>
+                {state.scheduledBlocks.length > 0 ? (
+                  <ul className="entity-list entity-list--timeline">
+                    {state.scheduledBlocks.map((block) => (
+                      <li className="entity-row" key={block.id}>
+                        <div>
+                          <strong>{block.title_override ?? task.title}</strong>
+                          <span>{formatTimeRange(block.starts_at, block.ends_at)}</span>
+                        </div>
+                        <span className={`pill pill--${block.status}`}>{block.status}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">No planned blocks for this task.</p>
+                )}
+              </article>
+
+              <article className="panel panel--stack">
+                <div className="panel-header panel-header--compact">
+                  <div>
+                    <p className="section-kicker">Work sessions</p>
+                    <h2>{state.workSessions.length} sessions</h2>
+                  </div>
+                </div>
+                {state.workSessions.length > 0 ? (
+                  <ul className="entity-list entity-list--timeline">
+                    {state.workSessions.map((workSession) => (
+                      <li className="entity-row" key={workSession.id}>
+                        <div>
+                          <strong>{formatDuration(workSession)}</strong>
+                          <span>
+                            {formatDateTime(workSession.started_at)} to{" "}
+                            {formatDateTime(workSession.ended_at)}
+                          </span>
+                        </div>
+                        <span className="pill">{statusLabel(workSession.end_reason)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">No work sessions recorded yet.</p>
+                )}
+              </article>
+            </aside>
+          </section>
+
+          {isMetadataDialogOpen ? (
+            <QuickActionDialog
+              kicker="Task metadata"
+              onClose={() => setIsMetadataDialogOpen(false)}
+              title="Edit details"
+              wide
+            >
+              <form
+                className="compact-form compact-form--flush metadata-form"
+                onSubmit={(event) => void handleSaveMetadata(event)}
+              >
                 <label>
                   <span>Title</span>
                   <input
@@ -632,131 +762,43 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     </label>
                   </div>
                 ) : null}
-                <button className="button button--accent" disabled={isSavingMetadata} type="submit">
-                  {isSavingMetadata ? "Saving..." : "Save metadata"}
-                </button>
+                <div className="form-actions">
+                  <button
+                    className="button button--ghost"
+                    onClick={() => setIsMetadataDialogOpen(false)}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                  <button className="button button--accent" disabled={isSavingMetadata} type="submit">
+                    {isSavingMetadata ? "Saving..." : "Save details"}
+                  </button>
+                </div>
               </form>
-            </article>
-          </section>
+            </QuickActionDialog>
+          ) : null}
 
-          <section className="operations-grid operations-grid--detail">
-            <article className="panel panel--stack">
-              <div className="panel-header panel-header--compact">
-                <div>
-                  <p className="section-kicker">Work sessions</p>
-                  <h2>{state.workSessions.length} sessions</h2>
-                </div>
-              </div>
-              {state.workSessions.length > 0 ? (
-                <ul className="entity-list entity-list--timeline">
-                  {state.workSessions.map((workSession) => (
-                    <li className="entity-row" key={workSession.id}>
-                      <div>
-                        <strong>{formatDuration(workSession)}</strong>
-                        <span>
-                          {formatDateTime(workSession.started_at)} to{" "}
-                          {formatDateTime(workSession.ended_at)}
-                        </span>
-                      </div>
-                      <span className="pill">{statusLabel(workSession.end_reason)}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="empty-state">No work sessions recorded yet.</p>
-              )}
-            </article>
-
-            <article className="panel panel--stack">
-              <div className="panel-header panel-header--compact">
-                <div>
-                  <p className="section-kicker">Experiments</p>
-                  <h2>{state.experiments.length} linked runs</h2>
-                </div>
-              </div>
-              {state.experiments.length > 0 ? (
-                <ul className="entity-list">
-                  {state.experiments.map((experiment) => (
-                    <li className="entity-row" key={experiment.id}>
-                      <div>
-                        <strong>{experiment.title}</strong>
-                        <span>{experiment.instruction || "No instruction"}</span>
-                      </div>
-                      <span className={`pill pill--${experiment.status}`}>
-                        {experiment.status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="empty-state">No experiments linked to this task.</p>
-              )}
-            </article>
-
-            <article className="panel panel--stack">
-              <div className="panel-header panel-header--compact">
-                <div>
-                  <p className="section-kicker">Planned blocks</p>
-                  <h2>{state.scheduledBlocks.length} blocks</h2>
-                </div>
-              </div>
-              {state.scheduledBlocks.length > 0 ? (
-                <ul className="entity-list entity-list--timeline">
-                  {state.scheduledBlocks.map((block) => (
-                    <li className="entity-row" key={block.id}>
-                      <div>
-                        <strong>{block.title_override ?? task.title}</strong>
-                        <span>{formatTimeRange(block.starts_at, block.ends_at)}</span>
-                      </div>
-                      <span className={`pill pill--${block.status}`}>{block.status}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="empty-state">No planned blocks for this task.</p>
-              )}
-            </article>
-
-            <article className="panel panel--stack task-notes-panel--secondary">
-              <div className="panel-header panel-header--compact">
-                <div>
-                  <p className="section-kicker">Task notes</p>
-                  <h2>{state.notes.length} notes</h2>
-                </div>
-              </div>
-
-              {state.notes.length > 0 ? (
-                <ol className="journal-list journal-list--long">
-                  {state.notes.map((note) => (
-                    <li key={note.id}>
-                      <time>{formatDateTime(note.created_at)}</time>
-                      <p>{note.content}</p>
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="empty-state">No task notes yet.</p>
-              )}
-
-              <form
-                className="compact-form"
-                onSubmit={(event) => void handleAddNote(event)}
-              >
-                <label>
-                  <span>Add note</span>
-                  <textarea
-                    onChange={(event) => setNoteContent(event.target.value)}
-                    placeholder="Capture task-specific context."
-                    rows={5}
-                    value={noteContent}
-                  />
-                </label>
-                <button className="button button--accent" disabled={isAddingNote} type="submit">
-                  {isAddingNote ? "Adding..." : "Add note"}
-                </button>
-              </form>
-            </article>
-          </section>
+          {isExperimentDialogOpen ? (
+            <QuickActionDialog
+              kicker="New experiment"
+              onClose={() => setIsExperimentDialogOpen(false)}
+              title="Register experiment"
+              wide
+            >
+              <ExperimentCreateForm
+                fixedTaskId={task.id}
+                onCancel={() => setIsExperimentDialogOpen(false)}
+                onError={setError}
+                onRegister={async (input) => {
+                  await registerExperiment(input);
+                }}
+                onRegistered={() => {
+                  setIsExperimentDialogOpen(false);
+                  void loadTaskDetail();
+                }}
+              />
+            </QuickActionDialog>
+          ) : null}
         </>
       ) : null}
     </main>
