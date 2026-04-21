@@ -42,6 +42,7 @@
 - UX redesign Point 1 shell/hidden-action foundation committed in `1ec4268`
 - UX redesign Point 2 redesigned Home cockpit committed in `7160403`
 - UX redesign Point 3 shared frontend form components committed in `980f66a`
+- UX redesign Point 4 redesigned task workspaces committed in `5e25f8d`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
@@ -66,7 +67,8 @@
   - left-panel navigation for Home, Tasks, Journal, Experiments, and Calendar
   - dedicated `Experiments`, `Journal`, and `Calendar` views
   - dedicated experiment registration form
-  - task detail workspace with prominent notes, experiment creation, metadata editing, references, sessions, linked experiments, and planned blocks
+  - focused Tasks workspace with compact counts, filters, task table, and dialog-based task creation
+  - notes-first task detail workspace with read-only context, dialog-based metadata editing, experiment creation, references, sessions, linked experiments, and planned blocks
   - calendar day timeline with a non-overlapping schedule form
   - Vite proxy to the backend `/api`
   - verified production build with `npm run build`
