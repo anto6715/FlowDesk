@@ -7,6 +7,7 @@ import {
   type Note,
   type Task
 } from "../../shared/api";
+import { TaskSelect } from "../../shared/forms";
 
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
@@ -147,20 +148,13 @@ export function JournalPage() {
         <article className="panel panel--stack">
           <p className="section-kicker">Append</p>
           <form className="compact-form compact-form--flush" onSubmit={(event) => void handleAppendEntry(event)}>
-            <label>
-              <span>Linked task</span>
-              <select
-                onChange={(event) => setEntryTaskId(event.target.value)}
-                value={entryTaskId}
-              >
-                <option value="">No linked task</option>
-                {openTasks.map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.title}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <TaskSelect
+              includeUnassigned
+              label="Linked task"
+              onChange={setEntryTaskId}
+              tasks={openTasks}
+              value={entryTaskId}
+            />
             <label>
               <span>Entry</span>
               <textarea

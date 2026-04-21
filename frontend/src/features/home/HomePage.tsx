@@ -8,8 +8,6 @@ import {
 
 import {
   appendJournalEntry,
-  createGitHubReference,
-  createMacroActivity,
   createTask,
   getActiveTask,
   listExperiments,
@@ -23,16 +21,20 @@ import {
   startTask,
   switchTask,
   type Experiment,
-  type ExperimentStatus,
   type GitHubReference,
   type MacroActivity,
   type Note,
   type ScheduledBlock,
   type Task,
-  type TaskPriority,
   type WaitingReason
 } from "../../shared/api";
-import { parseGitHubIssueOrPullUrl } from "../../shared/github";
+import {
+  ExperimentCreateForm,
+  formatGitHubReference,
+  QuickActionDialog,
+  TaskCreateForm,
+  TaskSelect
+} from "../../shared/forms";
 
 const waitingOptions: Array<{ value: WaitingReason; label: string }> = [
   { value: "experiment_running", label: "Experiment running" },
@@ -42,20 +44,6 @@ const waitingOptions: Array<{ value: WaitingReason; label: string }> = [
   { value: "external_contribution", label: "Waiting external contribution" },
   { value: "researcher_input", label: "Waiting researcher input" },
   { value: "other", label: "Other" }
-];
-
-const priorityOptions: Array<{ value: TaskPriority; label: string }> = [
-  { value: "low", label: "Low" },
-  { value: "normal", label: "Normal" },
-  { value: "high", label: "High" },
-  { value: "urgent", label: "Urgent" }
-];
-
-const experimentStatusOptions: Array<{ value: ExperimentStatus; label: string }> = [
-  { value: "running", label: "Running" },
-  { value: "queued", label: "Queued" },
-  { value: "draft", label: "Draft" },
-  { value: "stalled", label: "Stalled" }
 ];
 
 interface DashboardState {
@@ -133,15 +121,6 @@ function waitingLabel(value: WaitingReason | null) {
   return value.replace(/_/g, " ");
 }
 
-function formatGitHubReference(reference: GitHubReference) {
-  const title = reference.cached_title ? ` - ${reference.cached_title}` : "";
-  return `${reference.repository_full_name}#${reference.issue_number}${title}`;
-}
-
-function inferGitHubIssueUrl(repositoryFullName: string, issueNumber: number) {
-  return `https://github.com/${repositoryFullName}/issues/${issueNumber}`;
-}
-
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -160,60 +139,17 @@ function localDayBounds(dayKey: string) {
   };
 }
 
-interface MacroActivityFormState {
-  name: string;
-  description: string;
-  colorHex: string;
-}
-
-interface GitHubReferenceFormState {
-  entryMode: "url" | "manual";
-  repositoryFullName: string;
-  issueNumber: string;
-  issueUrl: string;
-  cachedTitle: string;
-}
-
-type CreateMacroActivityMode = "none" | "existing" | "new";
-type CreateGitHubReferenceMode = "none" | "existing" | "new";
 type HomeQuickAction = "task" | "note" | "experiment" | null;
 
 export function HomePage() {
   const [dashboard, setDashboard] = useState<DashboardState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isRegisteringExperiment, setIsRegisteringExperiment] = useState(false);
   const [isAppendingJournal, setIsAppendingJournal] = useState(false);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [quickAction, setQuickAction] = useState<HomeQuickAction>(null);
-  const [createTitle, setCreateTitle] = useState("");
-  const [createDescription, setCreateDescription] = useState("");
-  const [createPriority, setCreatePriority] = useState<TaskPriority>("normal");
-  const [createMacroActivityMode, setCreateMacroActivityMode] =
-    useState<CreateMacroActivityMode>("none");
-  const [createMacroActivityId, setCreateMacroActivityId] = useState("");
-  const [createGitHubReferenceMode, setCreateGitHubReferenceMode] =
-    useState<CreateGitHubReferenceMode>("none");
-  const [createGitHubReferenceId, setCreateGitHubReferenceId] = useState("");
-  const [macroActivityForm, setMacroActivityForm] = useState<MacroActivityFormState>({
-    name: "",
-    description: "",
-    colorHex: "#0F6D61"
-  });
-  const [githubReferenceForm, setGitHubReferenceForm] = useState<GitHubReferenceFormState>({
-    entryMode: "url",
-    repositoryFullName: "",
-    issueNumber: "",
-    issueUrl: "",
-    cachedTitle: ""
-  });
   const [waitingReason, setWaitingReason] = useState<WaitingReason>("experiment_running");
-  const [experimentTaskId, setExperimentTaskId] = useState("");
-  const [experimentTitle, setExperimentTitle] = useState("");
-  const [experimentInstruction, setExperimentInstruction] = useState("");
-  const [experimentStatus, setExperimentStatus] = useState<ExperimentStatus>("running");
   const [journalEntry, setJournalEntry] = useState("");
   const [journalTaskId, setJournalTaskId] = useState("");
 
@@ -287,115 +223,6 @@ export function HomePage() {
     return () => window.clearInterval(intervalId);
   }, []);
 
-  async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (createTitle.trim().length === 0) {
-      setError("Task title is required.");
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      let macroActivityId: string | null = null;
-      if (createMacroActivityMode === "existing") {
-        if (createMacroActivityId.length === 0) {
-          setError("Pick a macro-activity or choose a different macro mode.");
-          return;
-        }
-        macroActivityId = createMacroActivityId;
-      }
-      if (createMacroActivityMode === "new") {
-        if (macroActivityForm.name.trim().length === 0) {
-          setError("Macro-activity name is required.");
-          return;
-        }
-        const macroActivity = await createMacroActivity({
-          name: macroActivityForm.name.trim(),
-          description: macroActivityForm.description.trim() || undefined,
-          color_hex: macroActivityForm.colorHex
-        });
-        macroActivityId = macroActivity.id;
-      }
-
-      let githubReferenceId: string | null = null;
-      if (createGitHubReferenceMode === "existing") {
-        if (createGitHubReferenceId.length === 0) {
-          setError("Pick a GitHub reference or choose a different GitHub mode.");
-          return;
-        }
-        githubReferenceId = createGitHubReferenceId;
-      }
-      if (createGitHubReferenceMode === "new") {
-        const parsedReference =
-          githubReferenceForm.entryMode === "url"
-            ? parseGitHubIssueOrPullUrl(githubReferenceForm.issueUrl)
-            : null;
-        const repositoryFullName =
-          parsedReference?.repositoryFullName ?? githubReferenceForm.repositoryFullName.trim();
-        const issueNumber =
-          parsedReference?.issueNumber ?? Number.parseInt(githubReferenceForm.issueNumber, 10);
-        const issueUrl =
-          parsedReference?.issueUrl ||
-          githubReferenceForm.issueUrl.trim() ||
-          inferGitHubIssueUrl(repositoryFullName, issueNumber);
-
-        if (repositoryFullName.length === 0) {
-          setError("GitHub repository is required.");
-          return;
-        }
-        if (githubReferenceForm.entryMode === "url" && parsedReference === null) {
-          setError("Paste a valid GitHub issue or pull request URL.");
-          return;
-        }
-        if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
-          setError("GitHub issue or PR number must be a positive integer.");
-          return;
-        }
-
-        const reference = await createGitHubReference({
-          repository_full_name: repositoryFullName,
-          issue_number: issueNumber,
-          issue_url: issueUrl,
-          cached_title: githubReferenceForm.cachedTitle.trim() || undefined
-        });
-        githubReferenceId = reference.id;
-      }
-
-      await createTask({
-        title: createTitle.trim(),
-        description: createDescription.trim() || undefined,
-        priority: createPriority,
-        macro_activity_id: macroActivityId,
-        github_reference_id: githubReferenceId
-      });
-      setCreateTitle("");
-      setCreateDescription("");
-      setCreatePriority("normal");
-      setCreateMacroActivityMode("none");
-      setCreateMacroActivityId("");
-      setCreateGitHubReferenceId("");
-      setCreateGitHubReferenceMode("none");
-      setMacroActivityForm({
-        name: "",
-        description: "",
-        colorHex: macroActivityForm.colorHex
-      });
-      setGitHubReferenceForm({
-        entryMode: "url",
-        repositoryFullName: "",
-        issueNumber: "",
-        issueUrl: "",
-        cachedTitle: ""
-      });
-      setQuickAction(null);
-      await loadDashboard({ background: true });
-    } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Failed to create task.");
-    } finally {
-      setIsCreating(false);
-    }
-  }
-
   async function handleStartTask(taskId: string) {
     setBusyTaskId(taskId);
     try {
@@ -454,59 +281,11 @@ export function HomePage() {
     }
   }
 
-  function resolveTaskSelection(selectedTaskId: string) {
-    return (
-      selectedTaskId ||
-      dashboard.activeTask?.id ||
-      dashboard.tasks.find((task) => !["done", "archived"].includes(task.status))?.id ||
-      ""
-    );
-  }
-
   function openQuickAction(action: Exclude<HomeQuickAction, null>) {
     if (action === "note" && journalTaskId.length === 0 && dashboard.activeTask) {
       setJournalTaskId(dashboard.activeTask.id);
     }
-    if (action === "experiment" && experimentTaskId.length === 0) {
-      setExperimentTaskId(resolveTaskSelection(""));
-    }
     setQuickAction(action);
-  }
-
-  async function handleRegisterExperiment(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const taskId = resolveTaskSelection(experimentTaskId);
-    if (taskId.length === 0) {
-      setError("Pick a task before registering an experiment.");
-      return;
-    }
-    if (experimentTitle.trim().length === 0) {
-      setError("Experiment title is required.");
-      return;
-    }
-
-    setIsRegisteringExperiment(true);
-    try {
-      await registerExperiment({
-        task_id: taskId,
-        title: experimentTitle.trim(),
-        instruction: experimentInstruction.trim() || undefined,
-        status: experimentStatus
-      });
-      setExperimentTitle("");
-      setExperimentInstruction("");
-      setExperimentStatus("running");
-      setQuickAction(null);
-      await loadDashboard({ background: true });
-    } catch (experimentError) {
-      setError(
-        experimentError instanceof Error
-          ? experimentError.message
-          : "Failed to register experiment."
-      );
-    } finally {
-      setIsRegisteringExperiment(false);
-    }
   }
 
   async function handleAppendJournalEntry(event: FormEvent<HTMLFormElement>) {
@@ -541,10 +320,6 @@ export function HomePage() {
   const usedGithubReferenceIds = new Set(
     dashboard.tasks.flatMap((task) => (task.github_reference_id ? [task.github_reference_id] : []))
   );
-  const availableGithubReferences = dashboard.githubReferences.filter(
-    (reference) =>
-      !usedGithubReferenceIds.has(reference.id) || reference.id === createGitHubReferenceId
-  );
   const readyTasks = openTasks.filter((task) => task.id !== activeTaskId).slice(0, 4);
   const latestJournalEntries = [...dashboard.journalEntries]
     .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
@@ -556,7 +331,6 @@ export function HomePage() {
     ...dashboard.stalledExperiments,
     ...dashboard.runningExperiments
   ].slice(0, 3);
-  const defaultExperimentTaskId = experimentTaskId || resolveTaskSelection("");
 
   return (
     <main className="page-shell page-shell--home">
@@ -883,397 +657,90 @@ export function HomePage() {
       </section>
 
       {quickAction ? (
-        <div className="home-action-overlay" onMouseDown={() => setQuickAction(null)}>
-          <article
-            aria-labelledby={`home-${quickAction}-title`}
-            aria-modal="true"
-            className={
-              quickAction === "task"
-                ? "panel home-action-dialog home-action-dialog--wide"
-                : "panel home-action-dialog"
-            }
-            onMouseDown={(event) => event.stopPropagation()}
-            role="dialog"
-          >
-            <div className="panel-header">
-              <div>
-                <p className="section-kicker">Quick action</p>
-                <h2 id={`home-${quickAction}-title`}>
-                  {quickAction === "task"
-                    ? "New task"
-                    : quickAction === "note"
-                      ? "New note"
-                      : "New experiment"}
-                </h2>
+        <QuickActionDialog
+          onClose={() => setQuickAction(null)}
+          title={
+            quickAction === "task"
+              ? "New task"
+              : quickAction === "note"
+                ? "New note"
+                : "New experiment"
+          }
+          wide={quickAction === "task"}
+        >
+          {quickAction === "task" ? (
+            <TaskCreateForm
+              descriptionPlaceholder="Capture what you need to do next, not the whole project context."
+              githubReferences={dashboard.githubReferences}
+              macroActivities={dashboard.macroActivities}
+              onCancel={() => setQuickAction(null)}
+              onCreated={() => {
+                setQuickAction(null);
+                void loadDashboard({ background: true });
+              }}
+              onCreateTask={async (input) => {
+                await createTask(input);
+              }}
+              onError={setError}
+              unavailableGithubReferenceIds={usedGithubReferenceIds}
+            />
+          ) : null}
+
+          {quickAction === "note" ? (
+            <form
+              className="compact-form compact-form--flush"
+              onSubmit={(event) => void handleAppendJournalEntry(event)}
+            >
+              <TaskSelect
+                includeUnassigned
+                label="Linked task"
+                onChange={setJournalTaskId}
+                tasks={openTasks}
+                value={journalTaskId}
+              />
+              <label>
+                <span>Quick note</span>
+                <textarea
+                  onChange={(event) => setJournalEntry(event.target.value)}
+                  placeholder="Capture the observation while it is fresh."
+                  rows={6}
+                  value={journalEntry}
+                />
+              </label>
+              <div className="form-actions">
+                <button
+                  className="button button--ghost"
+                  onClick={() => setQuickAction(null)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="button button--accent"
+                  disabled={isAppendingJournal}
+                  type="submit"
+                >
+                  {isAppendingJournal ? "Appending..." : "Append entry"}
+                </button>
               </div>
-              <button
-                className="button button--ghost button--small"
-                onClick={() => setQuickAction(null)}
-                type="button"
-              >
-                Close
-              </button>
-            </div>
+            </form>
+          ) : null}
 
-            {quickAction === "task" ? (
-              <form className="create-form" onSubmit={(event) => void handleCreateTask(event)}>
-                <label>
-                  <span>Title</span>
-                  <input
-                    onChange={(event) => setCreateTitle(event.target.value)}
-                    placeholder="Investigate stalled coupled run"
-                    value={createTitle}
-                  />
-                </label>
-                <label>
-                  <span>Description</span>
-                  <textarea
-                    onChange={(event) => setCreateDescription(event.target.value)}
-                    placeholder="Capture what you need to do next, not the whole project context."
-                    rows={4}
-                    value={createDescription}
-                  />
-                </label>
-                <label>
-                  <span>Priority</span>
-                  <select
-                    onChange={(event) => setCreatePriority(event.target.value as TaskPriority)}
-                    value={createPriority}
-                  >
-                    {priorityOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Macro-activity</span>
-                  <select
-                    onChange={(event) =>
-                      setCreateMacroActivityMode(event.target.value as CreateMacroActivityMode)
-                    }
-                    value={createMacroActivityMode}
-                  >
-                    <option value="none">No macro-activity</option>
-                    <option value="existing">Use existing</option>
-                    <option value="new">Create new</option>
-                  </select>
-                </label>
-                {createMacroActivityMode === "existing" ? (
-                  <label>
-                    <span>Existing macro-activity</span>
-                    <select
-                      onChange={(event) => setCreateMacroActivityId(event.target.value)}
-                      value={createMacroActivityId}
-                    >
-                      <option value="">Pick macro-activity</option>
-                      {dashboard.macroActivities.map((macroActivity) => (
-                        <option key={macroActivity.id} value={macroActivity.id}>
-                          {macroActivity.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-                {createMacroActivityMode === "new" ? (
-                  <div className="embedded-form-grid">
-                    <label>
-                      <span>New macro name</span>
-                      <input
-                        onChange={(event) =>
-                          setMacroActivityForm((current) => ({
-                            ...current,
-                            name: event.target.value
-                          }))
-                        }
-                        placeholder="Coupled model runs"
-                        value={macroActivityForm.name}
-                      />
-                    </label>
-                    <label>
-                      <span>Description</span>
-                      <input
-                        onChange={(event) =>
-                          setMacroActivityForm((current) => ({
-                            ...current,
-                            description: event.target.value
-                          }))
-                        }
-                        placeholder="Optional scope note"
-                        value={macroActivityForm.description}
-                      />
-                    </label>
-                    <label>
-                      <span>Color</span>
-                      <input
-                        onChange={(event) =>
-                          setMacroActivityForm((current) => ({
-                            ...current,
-                            colorHex: event.target.value
-                          }))
-                        }
-                        type="color"
-                        value={macroActivityForm.colorHex}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-                <label>
-                  <span>GitHub reference</span>
-                  <select
-                    onChange={(event) =>
-                      setCreateGitHubReferenceMode(event.target.value as CreateGitHubReferenceMode)
-                    }
-                    value={createGitHubReferenceMode}
-                  >
-                    <option value="none">No GitHub reference</option>
-                    <option value="existing">Use existing</option>
-                    <option value="new">Create new</option>
-                  </select>
-                </label>
-                {createGitHubReferenceMode === "existing" ? (
-                  <label>
-                    <span>Existing GitHub reference</span>
-                    <select
-                      onChange={(event) => setCreateGitHubReferenceId(event.target.value)}
-                      value={createGitHubReferenceId}
-                    >
-                      <option value="">Pick GitHub reference</option>
-                      {availableGithubReferences.map((reference) => (
-                        <option key={reference.id} value={reference.id}>
-                          {formatGitHubReference(reference)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-                {createGitHubReferenceMode === "new" ? (
-                  <div className="embedded-form-grid">
-                    <div className="segmented-control">
-                      <button
-                        className={
-                          githubReferenceForm.entryMode === "url"
-                            ? "segmented-control__item segmented-control__item--active"
-                            : "segmented-control__item"
-                        }
-                        onClick={() =>
-                          setGitHubReferenceForm((current) => ({ ...current, entryMode: "url" }))
-                        }
-                        type="button"
-                      >
-                        Paste URL
-                      </button>
-                      <button
-                        className={
-                          githubReferenceForm.entryMode === "manual"
-                            ? "segmented-control__item segmented-control__item--active"
-                            : "segmented-control__item"
-                        }
-                        onClick={() =>
-                          setGitHubReferenceForm((current) => ({
-                            ...current,
-                            entryMode: "manual"
-                          }))
-                        }
-                        type="button"
-                      >
-                        Manual
-                      </button>
-                    </div>
-                    {githubReferenceForm.entryMode === "url" ? (
-                      <label>
-                        <span>GitHub issue or PR URL</span>
-                        <input
-                          onChange={(event) =>
-                            setGitHubReferenceForm((current) => ({
-                              ...current,
-                              issueUrl: event.target.value
-                            }))
-                          }
-                          placeholder="https://github.com/org/project/issues/42"
-                          value={githubReferenceForm.issueUrl}
-                        />
-                      </label>
-                    ) : (
-                      <>
-                        <label>
-                          <span>Repository</span>
-                          <input
-                            onChange={(event) =>
-                              setGitHubReferenceForm((current) => ({
-                                ...current,
-                                repositoryFullName: event.target.value
-                              }))
-                            }
-                            placeholder="org/project"
-                            value={githubReferenceForm.repositoryFullName}
-                          />
-                        </label>
-                        <label>
-                          <span>Issue or PR number</span>
-                          <input
-                            min="1"
-                            onChange={(event) =>
-                              setGitHubReferenceForm((current) => ({
-                                ...current,
-                                issueNumber: event.target.value
-                              }))
-                            }
-                            placeholder="42"
-                            type="number"
-                            value={githubReferenceForm.issueNumber}
-                          />
-                        </label>
-                      </>
-                    )}
-                    <label>
-                      <span>Title</span>
-                      <input
-                        onChange={(event) =>
-                          setGitHubReferenceForm((current) => ({
-                            ...current,
-                            cachedTitle: event.target.value
-                          }))
-                        }
-                        placeholder="Optional"
-                        value={githubReferenceForm.cachedTitle}
-                      />
-                    </label>
-                  </div>
-                ) : null}
-                <div className="form-actions">
-                  <button
-                    className="button button--ghost"
-                    onClick={() => setQuickAction(null)}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                  <button className="button button--accent" disabled={isCreating} type="submit">
-                    {isCreating ? "Creating..." : "Create task"}
-                  </button>
-                </div>
-              </form>
-            ) : null}
-
-            {quickAction === "note" ? (
-              <form
-                className="compact-form compact-form--flush"
-                onSubmit={(event) => void handleAppendJournalEntry(event)}
-              >
-                <label>
-                  <span>Linked task</span>
-                  <select
-                    onChange={(event) => setJournalTaskId(event.target.value)}
-                    value={journalTaskId}
-                  >
-                    <option value="">No linked task</option>
-                    {openTasks.map((task) => (
-                      <option key={task.id} value={task.id}>
-                        {task.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Quick note</span>
-                  <textarea
-                    onChange={(event) => setJournalEntry(event.target.value)}
-                    placeholder="Capture the observation while it is fresh."
-                    rows={6}
-                    value={journalEntry}
-                  />
-                </label>
-                <div className="form-actions">
-                  <button
-                    className="button button--ghost"
-                    onClick={() => setQuickAction(null)}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="button button--accent"
-                    disabled={isAppendingJournal}
-                    type="submit"
-                  >
-                    {isAppendingJournal ? "Appending..." : "Append entry"}
-                  </button>
-                </div>
-              </form>
-            ) : null}
-
-            {quickAction === "experiment" ? (
-              <form
-                className="compact-form compact-form--flush"
-                onSubmit={(event) => void handleRegisterExperiment(event)}
-              >
-                <label>
-                  <span>Task</span>
-                  <select
-                    disabled={openTasks.length === 0}
-                    onChange={(event) => setExperimentTaskId(event.target.value)}
-                    value={defaultExperimentTaskId}
-                  >
-                    {openTasks.length === 0 ? <option value="">No open tasks</option> : null}
-                    {openTasks.map((task) => (
-                      <option key={task.id} value={task.id}>
-                        {task.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Title</span>
-                  <input
-                    onChange={(event) => setExperimentTitle(event.target.value)}
-                    placeholder="Scaling run 256 ranks"
-                    value={experimentTitle}
-                  />
-                </label>
-                <label>
-                  <span>Instruction</span>
-                  <textarea
-                    onChange={(event) => setExperimentInstruction(event.target.value)}
-                    placeholder="What this run should prove or disprove."
-                    rows={4}
-                    value={experimentInstruction}
-                  />
-                </label>
-                <label>
-                  <span>Status</span>
-                  <select
-                    onChange={(event) => setExperimentStatus(event.target.value as ExperimentStatus)}
-                    value={experimentStatus}
-                  >
-                    {experimentStatusOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="form-actions">
-                  <button
-                    className="button button--ghost"
-                    onClick={() => setQuickAction(null)}
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="button button--accent"
-                    disabled={isRegisteringExperiment || defaultExperimentTaskId.length === 0}
-                    type="submit"
-                  >
-                    {isRegisteringExperiment ? "Registering..." : "Register experiment"}
-                  </button>
-                </div>
-              </form>
-            ) : null}
-          </article>
-        </div>
+          {quickAction === "experiment" ? (
+            <ExperimentCreateForm
+              onCancel={() => setQuickAction(null)}
+              onError={setError}
+              onRegister={async (input) => {
+                await registerExperiment(input);
+              }}
+              onRegistered={() => {
+                setQuickAction(null);
+                void loadDashboard({ background: true });
+              }}
+              tasks={openTasks}
+            />
+          ) : null}
+        </QuickActionDialog>
       ) : null}
     </main>
   );

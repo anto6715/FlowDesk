@@ -7,6 +7,7 @@ import {
   type ScheduledBlock,
   type Task
 } from "../../shared/api";
+import { TaskSelect } from "../../shared/forms";
 
 interface CalendarState {
   tasks: Task[];
@@ -296,23 +297,11 @@ export function CalendarPage() {
         <article className="panel panel--stack">
           <p className="section-kicker">Schedule</p>
           <form className="compact-form compact-form--flush" onSubmit={(event) => void handleCreateScheduledBlock(event)}>
-            <label>
-              <span>Task</span>
-              <select
-                disabled={openTasks.length === 0}
-                onChange={(event) =>
-                  setScheduleForm((current) => ({ ...current, taskId: event.target.value }))
-                }
-                value={selectedTaskId}
-              >
-                {openTasks.length === 0 ? <option value="">No open tasks</option> : null}
-                {openTasks.map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.title}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <TaskSelect
+              onChange={(taskId) => setScheduleForm((current) => ({ ...current, taskId }))}
+              tasks={openTasks}
+              value={selectedTaskId}
+            />
             <label>
               <span>Title override</span>
               <input
