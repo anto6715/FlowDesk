@@ -18,8 +18,9 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - Point 2 completed in `7160403`.
 - Point 3 completed in `980f66a`.
 - Point 4 completed in `5e25f8d`.
-- Point 5 has not started.
-- Ask the user before starting Point 5.
+- Point 5 completed in `4d6bf09`.
+- Point 6 has not started.
+- Ask the user before starting Point 6.
 
 ## Redesign goals
 
@@ -93,6 +94,8 @@ Acceptance:
 - Task editing is available but not visually dominant.
 
 ### Point 5. Redesigned Journal, Experiments, and Calendar
+
+Status: completed in `4d6bf09`.
 
 Scope:
 
