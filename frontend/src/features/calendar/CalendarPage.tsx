@@ -7,7 +7,7 @@ import {
   type ScheduledBlock,
   type Task
 } from "../../shared/api";
-import { TaskSelect } from "../../shared/forms";
+import { QuickActionDialog, TaskSelect } from "../../shared/forms";
 
 interface CalendarState {
   tasks: Task[];
@@ -109,6 +109,7 @@ export function CalendarPage() {
   const [calendarDay, setCalendarDay] = useState(localDateKey());
   const [isLoading, setIsLoading] = useState(true);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scheduleForm, setScheduleForm] = useState<ScheduleFormState>(() => {
     const defaultWindow = getDefaultScheduleWindow(localDateKey());
@@ -205,6 +206,7 @@ export function CalendarPage() {
         endsAt: defaultWindow.endsAt
       });
       await loadCalendar(calendarDay);
+      setIsScheduleDialogOpen(false);
     } catch (scheduleError) {
       setError(scheduleError instanceof Error ? scheduleError.message : "Failed to schedule block.");
     } finally {
@@ -214,32 +216,43 @@ export function CalendarPage() {
 
   return (
     <main className="page-shell">
-      <section className="hero hero--compact">
+      <section className="hero hero--compact calendar-hero">
         <div>
           <p className="eyebrow">Calendar</p>
           <h1>{calendarDay}</h1>
         </div>
-        <div className="sync-chip">
-          <span>{isLoading ? "Loading..." : "Planning feed"}</span>
-          <strong>{state.syncedAt ? formatDateTime(state.syncedAt.toISOString()) : "Sync pending"}</strong>
+        <div className="task-hero-actions">
+          <label className="date-field date-field--inline">
+            <span>Day</span>
+            <input
+              onChange={(event) => setCalendarDay(event.target.value)}
+              type="date"
+              value={calendarDay}
+            />
+          </label>
+          <button
+            className="button button--accent button--round"
+            onClick={() => setIsScheduleDialogOpen(true)}
+            type="button"
+          >
+            + Block
+          </button>
+          <div className="sync-chip sync-chip--quiet">
+            <span>{isLoading ? "Loading..." : "Planning feed"}</span>
+            <strong>
+              {state.syncedAt ? formatDateTime(state.syncedAt.toISOString()) : "Sync pending"}
+            </strong>
+          </div>
         </div>
       </section>
 
-      <section className="operations-grid operations-grid--calendar">
-        <article className="panel panel--stack">
-          <div className="panel-header panel-header--compact">
+      <section className="calendar-workspace">
+        <article className="panel panel--stack calendar-board-panel">
+          <div className="panel-header">
             <div>
               <p className="section-kicker">Planned blocks</p>
               <h2>{state.scheduledBlocks.length} blocks</h2>
             </div>
-            <label className="date-field">
-              <span>Day</span>
-              <input
-                onChange={(event) => setCalendarDay(event.target.value)}
-                type="date"
-                value={calendarDay}
-              />
-            </label>
           </div>
 
           {error ? <div className="banner banner--error">{error}</div> : null}
@@ -293,10 +306,19 @@ export function CalendarPage() {
             </ul>
           ) : null}
         </article>
+      </section>
 
-        <article className="panel panel--stack">
-          <p className="section-kicker">Schedule</p>
-          <form className="compact-form compact-form--flush" onSubmit={(event) => void handleCreateScheduledBlock(event)}>
+      {isScheduleDialogOpen ? (
+        <QuickActionDialog
+          kicker="Schedule"
+          onClose={() => setIsScheduleDialogOpen(false)}
+          title="New block"
+          wide
+        >
+          <form
+            className="compact-form compact-form--flush"
+            onSubmit={(event) => void handleCreateScheduledBlock(event)}
+          >
             <TaskSelect
               onChange={(taskId) => setScheduleForm((current) => ({ ...current, taskId }))}
               tasks={openTasks}
@@ -345,8 +367,8 @@ export function CalendarPage() {
               {isScheduling ? "Scheduling..." : "Schedule block"}
             </button>
           </form>
-        </article>
-      </section>
+        </QuickActionDialog>
+      ) : null}
     </main>
   );
 }

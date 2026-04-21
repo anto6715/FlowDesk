@@ -95,36 +95,75 @@ export function JournalPage() {
 
   return (
     <main className="page-shell">
-      <section className="hero hero--compact">
+      <section className="hero hero--compact journal-hero">
         <div>
           <p className="eyebrow">Journal</p>
           <h1>{journalDay}</h1>
         </div>
-        <div className="sync-chip">
-          <span>{isLoading ? "Loading..." : "Daily journal"}</span>
-          <strong>{state.syncedAt ? formatDateTime(state.syncedAt.toISOString()) : "Sync pending"}</strong>
+        <div className="task-hero-actions">
+          <label className="date-field date-field--inline">
+            <span>Day</span>
+            <input
+              onChange={(event) => setJournalDay(event.target.value)}
+              type="date"
+              value={journalDay}
+            />
+          </label>
+          <div className="sync-chip sync-chip--quiet">
+            <span>{isLoading ? "Loading..." : "Daily journal"}</span>
+            <strong>
+              {state.syncedAt ? formatDateTime(state.syncedAt.toISOString()) : "Sync pending"}
+            </strong>
+          </div>
         </div>
       </section>
 
-      <section className="operations-grid operations-grid--journal">
-        <article className="panel panel--stack">
+      {error ? <div className="banner banner--error">{error}</div> : null}
+      {isLoading ? <div className="banner">Loading journal...</div> : null}
+
+      <section className="journal-workspace">
+        <article className="panel panel--stack journal-composer-panel">
+          <div className="panel-header">
+            <div>
+              <p className="section-kicker">Daily writing</p>
+              <h2>New entry</h2>
+            </div>
+          </div>
+          <form
+            className="compact-form compact-form--flush journal-composer"
+            onSubmit={(event) => void handleAppendEntry(event)}
+          >
+            <label>
+              <span>Entry</span>
+              <textarea
+                onChange={(event) => setEntryContent(event.target.value)}
+                placeholder="Capture the note."
+                rows={8}
+                value={entryContent}
+              />
+            </label>
+            <div className="journal-compose-actions">
+              <TaskSelect
+                includeUnassigned
+                label="Linked task"
+                onChange={setEntryTaskId}
+                tasks={openTasks}
+                value={entryTaskId}
+              />
+              <button className="button button--accent" disabled={isAppending} type="submit">
+                {isAppending ? "Appending..." : "Append entry"}
+              </button>
+            </div>
+          </form>
+        </article>
+
+        <article className="panel panel--stack journal-entry-panel">
           <div className="panel-header panel-header--compact">
             <div>
               <p className="section-kicker">Daily entries</p>
               <h2>{state.entries.length} entries</h2>
             </div>
-            <label className="date-field">
-              <span>Day</span>
-              <input
-                onChange={(event) => setJournalDay(event.target.value)}
-                type="date"
-                value={journalDay}
-              />
-            </label>
           </div>
-
-          {error ? <div className="banner banner--error">{error}</div> : null}
-          {isLoading ? <div className="banner">Loading journal...</div> : null}
 
           {state.entries.length > 0 ? (
             <ol className="journal-list journal-list--long">
@@ -143,31 +182,6 @@ export function JournalPage() {
           ) : (
             <p className="empty-state">No entries for this day.</p>
           )}
-        </article>
-
-        <article className="panel panel--stack">
-          <p className="section-kicker">Append</p>
-          <form className="compact-form compact-form--flush" onSubmit={(event) => void handleAppendEntry(event)}>
-            <TaskSelect
-              includeUnassigned
-              label="Linked task"
-              onChange={setEntryTaskId}
-              tasks={openTasks}
-              value={entryTaskId}
-            />
-            <label>
-              <span>Entry</span>
-              <textarea
-                onChange={(event) => setEntryContent(event.target.value)}
-                placeholder="Capture the note."
-                rows={10}
-                value={entryContent}
-              />
-            </label>
-            <button className="button button--accent" disabled={isAppending} type="submit">
-              {isAppending ? "Appending..." : "Append entry"}
-            </button>
-          </form>
         </article>
       </section>
     </main>

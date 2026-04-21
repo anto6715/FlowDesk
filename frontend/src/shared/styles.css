@@ -231,6 +231,21 @@ body {
   gap: 0.75rem;
 }
 
+.date-field--inline {
+  min-width: min(12rem, 100%);
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: rgba(255, 250, 241, 0.68);
+}
+
+.date-field--inline input {
+  padding: 0.5rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .home-toolbar,
 .journal-actions {
   display: flex;
@@ -461,6 +476,33 @@ body {
   border: 1px solid rgba(30, 27, 24, 0.07);
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.38);
+}
+
+.journal-workspace,
+.calendar-workspace {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.journal-composer-panel,
+.journal-entry-panel,
+.calendar-board-panel {
+  margin-top: 0;
+}
+
+.journal-composer {
+  gap: 1rem;
+}
+
+.journal-compose-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: end;
+}
+
+.experiment-registry-panel {
+  margin-top: 0;
 }
 
 .summary-card,
@@ -1397,7 +1439,8 @@ textarea {
   }
 
   .task-hero-actions .button,
-  .task-hero-actions .sync-chip {
+  .task-hero-actions .sync-chip,
+  .task-hero-actions .date-field {
     width: 100%;
   }
 
@@ -1463,6 +1506,10 @@ textarea {
   }
 
   .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .journal-compose-actions {
     grid-template-columns: 1fr;
   }
 

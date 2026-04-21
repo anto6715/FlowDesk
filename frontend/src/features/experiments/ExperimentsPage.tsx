@@ -14,7 +14,7 @@ import {
   type ExperimentStatus,
   type Task
 } from "../../shared/api";
-import { ExperimentCreateForm } from "../../shared/forms";
+import { ExperimentCreateForm, QuickActionDialog } from "../../shared/forms";
 
 type ExperimentStatusFilter = "all" | ExperimentStatus;
 
@@ -67,6 +67,7 @@ export function ExperimentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ExperimentStatusFilter>("all");
+  const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
   const deferredQuery = useDeferredValue(query);
 
   async function loadExperiments() {
@@ -122,59 +123,50 @@ export function ExperimentsPage() {
 
   return (
     <main className="page-shell">
-      <section className="hero hero--compact">
+      <section className="hero hero--compact experiments-hero">
         <div>
           <p className="eyebrow">Experiments</p>
           <h1>Run registry</h1>
         </div>
-        <div className="sync-chip">
-          <span>{isLoading ? "Loading..." : "Local experiment index"}</span>
-          <strong>{state.syncedAt ? formatDateTime(state.syncedAt.toISOString()) : "Sync pending"}</strong>
+        <div className="task-hero-actions">
+          <div className="sync-chip sync-chip--quiet">
+            <span>{isLoading ? "Loading..." : "Local experiment index"}</span>
+            <strong>
+              {state.syncedAt ? formatDateTime(state.syncedAt.toISOString()) : "Sync pending"}
+            </strong>
+          </div>
+          <button
+            className="button button--accent button--round"
+            onClick={() => setIsRegisterDialogOpen(true)}
+            type="button"
+          >
+            + Experiment
+          </button>
         </div>
       </section>
 
-      <section className="summary-grid summary-grid--tasks" aria-label="Experiment counts">
-        <article className="summary-card">
-          <p className="section-kicker">Running</p>
+      <section className="task-count-strip" aria-label="Experiment counts">
+        <article>
+          <span>Running</span>
           <strong className="big-number">
             {state.experiments.filter((experiment) => experiment.status === "running").length}
           </strong>
         </article>
-        <article className="summary-card">
-          <p className="section-kicker">Stalled</p>
+        <article>
+          <span>Stalled</span>
           <strong className="big-number">
             {state.experiments.filter((experiment) => experiment.status === "stalled").length}
           </strong>
         </article>
-        <article className="summary-card">
-          <p className="section-kicker">Failed</p>
+        <article>
+          <span>Failed</span>
           <strong className="big-number">
             {state.experiments.filter((experiment) => experiment.status === "failed").length}
           </strong>
         </article>
       </section>
 
-      <section className="panel panel--wide">
-        <div className="panel-header">
-          <div>
-            <p className="section-kicker">Register experiment</p>
-            <h2>New run</h2>
-          </div>
-        </div>
-        <ExperimentCreateForm
-          className="create-form create-form--tasks"
-          onError={setError}
-          onRegister={async (input) => {
-            await registerExperiment(input);
-          }}
-          onRegistered={() => {
-            void loadExperiments();
-          }}
-          tasks={openTasks}
-        />
-      </section>
-
-      <section className="panel panel--wide">
+      <section className="panel panel--wide experiment-registry-panel">
         <div className="panel-header">
           <div>
             <p className="section-kicker">Experiment index</p>
@@ -214,12 +206,10 @@ export function ExperimentsPage() {
             <thead>
               <tr>
                 <th>Experiment</th>
-                <th>Task</th>
-                <th>Status</th>
+                <th>State</th>
+                <th>Runtime</th>
                 <th>Scheduler</th>
-                <th>Started</th>
-                <th>Ended</th>
-                <th>Actions</th>
+                <th>Set state</th>
               </tr>
             </thead>
             <tbody>
@@ -227,37 +217,43 @@ export function ExperimentsPage() {
                 <tr key={experiment.id}>
                   <td>
                     <strong>{experiment.title}</strong>
+                    <span>{taskLookup.get(experiment.task_id)?.title ?? "Unknown task"}</span>
                     <span>{experiment.instruction || "No instruction"}</span>
                   </td>
-                  <td>{taskLookup.get(experiment.task_id)?.title ?? "Unknown task"}</td>
                   <td>
                     <span className={`pill pill--${experiment.status}`}>
                       {experiment.status}
                     </span>
                   </td>
                   <td>
+                    <span>Started: {formatDateTime(experiment.started_at)}</span>
+                    <span>Ended: {formatDateTime(experiment.ended_at)}</span>
+                  </td>
+                  <td>
                     {experiment.scheduler_name || "None"}
                     {experiment.scheduler_job_id ? ` #${experiment.scheduler_job_id}` : ""}
                   </td>
-                  <td>{formatDateTime(experiment.started_at)}</td>
-                  <td>{formatDateTime(experiment.ended_at)}</td>
                   <td>
-                    <div className="table-actions">
-                      {transitionTargets.map((target) => (
-                        <button
-                          className="button button--ghost button--small"
-                          disabled={
-                            busyExperimentId === experiment.id ||
-                            experiment.status === target.value
-                          }
-                          key={target.value}
-                          onClick={() => void handleStateChange(experiment.id, target.value)}
-                          type="button"
-                        >
-                          {target.label}
-                        </button>
-                      ))}
-                    </div>
+                    <select
+                      aria-label={`Set state for ${experiment.title}`}
+                      disabled={busyExperimentId === experiment.id}
+                      onChange={(event) =>
+                        void handleStateChange(
+                          experiment.id,
+                          event.target.value as ExperimentStatus
+                        )
+                      }
+                      value={experiment.status}
+                    >
+                      <option value={experiment.status}>{experiment.status}</option>
+                      {transitionTargets
+                        .filter((target) => target.value !== experiment.status)
+                        .map((target) => (
+                          <option key={target.value} value={target.value}>
+                            {target.label}
+                          </option>
+                        ))}
+                    </select>
                   </td>
                 </tr>
               ))}
@@ -265,6 +261,28 @@ export function ExperimentsPage() {
           </table>
         </div>
       </section>
+
+      {isRegisterDialogOpen ? (
+        <QuickActionDialog
+          kicker="Register experiment"
+          onClose={() => setIsRegisterDialogOpen(false)}
+          title="New run"
+          wide
+        >
+          <ExperimentCreateForm
+            onCancel={() => setIsRegisterDialogOpen(false)}
+            onError={setError}
+            onRegister={async (input) => {
+              await registerExperiment(input);
+            }}
+            onRegistered={() => {
+              setIsRegisterDialogOpen(false);
+              void loadExperiments();
+            }}
+            tasks={openTasks}
+          />
+        </QuickActionDialog>
+      ) : null}
     </main>
   );
 }
