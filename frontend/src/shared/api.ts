@@ -200,6 +200,15 @@ export interface CreateScheduledBlockInput {
   ends_at: string;
 }
 
+export interface MoveScheduledBlockInput {
+  starts_at: string;
+  ends_at: string;
+}
+
+export interface UpdateScheduledBlockStatusInput {
+  status: ScheduledBlockStatus;
+}
+
 export interface Note {
   id: string;
   scope: NoteScope;
@@ -393,6 +402,26 @@ export async function createScheduledBlock(
   input: CreateScheduledBlockInput
 ): Promise<ScheduledBlock> {
   return request<ScheduledBlock>("/scheduled-blocks", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function moveScheduledBlock(
+  scheduledBlockId: string,
+  input: MoveScheduledBlockInput
+): Promise<ScheduledBlock> {
+  return request<ScheduledBlock>(`/scheduled-blocks/${scheduledBlockId}/move`, {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function setScheduledBlockStatus(
+  scheduledBlockId: string,
+  input: UpdateScheduledBlockStatusInput
+): Promise<ScheduledBlock> {
+  return request<ScheduledBlock>(`/scheduled-blocks/${scheduledBlockId}/status`, {
     method: "POST",
     body: JSON.stringify(input)
   });

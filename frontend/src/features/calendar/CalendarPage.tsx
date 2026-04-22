@@ -8,7 +8,8 @@ import {
   type Task
 } from "../../shared/api";
 import { QuickActionDialog, TaskSelect } from "../../shared/forms";
-import { plannedSessionCountLabel } from "../../shared/labels";
+import { formatScheduledBlockStatus, plannedSessionCountLabel } from "../../shared/labels";
+import { PlannedSessionDialog } from "../../shared/plannedSessions";
 
 interface CalendarState {
   tasks: Task[];
@@ -115,6 +116,7 @@ export function CalendarPage({ onOpenTask }: CalendarPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isScheduling, setIsScheduling] = useState(false);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [selectedScheduledBlockId, setSelectedScheduledBlockId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scheduleForm, setScheduleForm] = useState<ScheduleFormState>(() => {
     const defaultWindow = getDefaultScheduleWindow(localDateKey());
@@ -165,6 +167,10 @@ export function CalendarPage({ onOpenTask }: CalendarPageProps) {
   const openTasks = state.tasks.filter((task) => !["done", "archived"].includes(task.status));
   const selectedTaskId = scheduleForm.taskId || openTasks[0]?.id || "";
   const taskLookup = new Map(state.tasks.map((task) => [task.id, task]));
+  const selectedScheduledBlock =
+    selectedScheduledBlockId !== null
+      ? state.scheduledBlocks.find((block) => block.id === selectedScheduledBlockId) ?? null
+      : null;
   const hourRows = Array.from(
     { length: calendarEndHour - calendarStartHour + 1 },
     (_, index) => calendarStartHour + index
@@ -275,9 +281,9 @@ export function CalendarPage({ onOpenTask }: CalendarPageProps) {
               ))}
               {visibleBlocks.map(({ block, top, height }) => (
                 <button
-                  className="calendar-block"
+                  className={`calendar-block calendar-block--${block.status}`}
                   key={block.id}
-                  onClick={() => onOpenTask(block.task_id)}
+                  onClick={() => setSelectedScheduledBlockId(block.id)}
                   style={{
                     top: `${top}%`,
                     height: `${height}%`
@@ -288,7 +294,10 @@ export function CalendarPage({ onOpenTask }: CalendarPageProps) {
                     {block.title_override ?? taskLookup.get(block.task_id)?.title ?? "Untitled planned session"}
                   </strong>
                   <span>{taskLookup.get(block.task_id)?.title ?? "Unknown task"}</span>
-                  <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
+                  <time>
+                    {formatTimeRange(block.starts_at, block.ends_at)} -{" "}
+                    {formatScheduledBlockStatus(block.status)}
+                  </time>
                 </button>
               ))}
               {state.scheduledBlocks.length === 0 ? (
@@ -303,7 +312,7 @@ export function CalendarPage({ onOpenTask }: CalendarPageProps) {
                 <li className="entity-row" key={block.id}>
                   <button
                     className="entity-row__body-button"
-                    onClick={() => onOpenTask(block.task_id)}
+                    onClick={() => setSelectedScheduledBlockId(block.id)}
                     type="button"
                   >
                     <strong>
@@ -311,7 +320,12 @@ export function CalendarPage({ onOpenTask }: CalendarPageProps) {
                     </strong>
                     <span>{taskLookup.get(block.task_id)?.title ?? "Unknown task"}</span>
                   </button>
-                  <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
+                  <div className="entity-row__meta-stack">
+                    <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
+                    <span className={`pill pill--${block.status}`}>
+                      {formatScheduledBlockStatus(block.status)}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -379,6 +393,16 @@ export function CalendarPage({ onOpenTask }: CalendarPageProps) {
             </button>
           </form>
         </QuickActionDialog>
+      ) : null}
+
+      {selectedScheduledBlock ? (
+        <PlannedSessionDialog
+          onChanged={() => loadCalendar(calendarDay)}
+          onClose={() => setSelectedScheduledBlockId(null)}
+          onOpenTask={onOpenTask}
+          scheduledBlock={selectedScheduledBlock}
+          tasks={state.tasks}
+        />
       ) : null}
     </main>
   );

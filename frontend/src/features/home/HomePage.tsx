@@ -35,7 +35,8 @@ import {
   TaskCreateForm,
   TaskSelect
 } from "../../shared/forms";
-import { formatTaskStatus } from "../../shared/labels";
+import { formatScheduledBlockStatus, formatTaskStatus } from "../../shared/labels";
+import { PlannedSessionDialog } from "../../shared/plannedSessions";
 
 const waitingOptions: Array<{ value: WaitingReason; label: string }> = [
   { value: "experiment_running", label: "Experiment running" },
@@ -150,6 +151,7 @@ export function HomePage({ onOpenTask }: HomePageProps) {
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [quickAction, setQuickAction] = useState<HomeQuickAction>(null);
+  const [selectedScheduledBlockId, setSelectedScheduledBlockId] = useState<string | null>(null);
   const [waitingReason, setWaitingReason] = useState<WaitingReason>("experiment_running");
   const [journalEntry, setJournalEntry] = useState("");
   const [journalTaskId, setJournalTaskId] = useState("");
@@ -330,6 +332,10 @@ export function HomePage({ onOpenTask }: HomePageProps) {
   const nextScheduledBlocks = [...dashboard.scheduledBlocks]
     .sort((left, right) => new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime())
     .slice(0, 2);
+  const selectedScheduledBlock =
+    selectedScheduledBlockId !== null
+      ? dashboard.scheduledBlocks.find((block) => block.id === selectedScheduledBlockId) ?? null
+      : null;
   const attentionExperiments = [
     ...dashboard.stalledExperiments,
     ...dashboard.runningExperiments
@@ -562,7 +568,7 @@ export function HomePage({ onOpenTask }: HomePageProps) {
                     <li className="entity-row" key={block.id}>
                       <button
                         className="entity-row__body-button"
-                        onClick={() => onOpenTask(block.task_id)}
+                        onClick={() => setSelectedScheduledBlockId(block.id)}
                         type="button"
                       >
                         <strong>
@@ -572,7 +578,12 @@ export function HomePage({ onOpenTask }: HomePageProps) {
                         </strong>
                         <span>{taskLookup.get(block.task_id)?.title ?? "Unknown task"}</span>
                       </button>
-                      <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
+                      <div className="entity-row__meta-stack">
+                        <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
+                        <span className={`pill pill--${block.status}`}>
+                          {formatScheduledBlockStatus(block.status)}
+                        </span>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -748,6 +759,16 @@ export function HomePage({ onOpenTask }: HomePageProps) {
             />
           ) : null}
         </QuickActionDialog>
+      ) : null}
+
+      {selectedScheduledBlock ? (
+        <PlannedSessionDialog
+          onChanged={() => loadDashboard({ background: true })}
+          onClose={() => setSelectedScheduledBlockId(null)}
+          onOpenTask={onOpenTask}
+          scheduledBlock={selectedScheduledBlock}
+          tasks={dashboard.tasks}
+        />
       ) : null}
     </main>
   );

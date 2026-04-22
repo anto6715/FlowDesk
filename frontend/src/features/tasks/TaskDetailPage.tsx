@@ -23,7 +23,12 @@ import {
 } from "../../shared/api";
 import { ExperimentCreateForm, formatGitHubReference, QuickActionDialog } from "../../shared/forms";
 import { parseGitHubIssueOrPullUrl } from "../../shared/github";
-import { formatTaskStatus, plannedSessionCountLabel } from "../../shared/labels";
+import {
+  formatScheduledBlockStatus,
+  formatTaskStatus,
+  plannedSessionCountLabel
+} from "../../shared/labels";
+import { PlannedSessionDialog } from "../../shared/plannedSessions";
 
 interface TaskDetailPageProps {
   taskId: string;
@@ -161,6 +166,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
   const [noteContent, setNoteContent] = useState("");
   const [isMetadataDialogOpen, setIsMetadataDialogOpen] = useState(false);
   const [isExperimentDialogOpen, setIsExperimentDialogOpen] = useState(false);
+  const [selectedScheduledBlockId, setSelectedScheduledBlockId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function loadTaskDetail() {
@@ -348,6 +354,10 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
     metadataForm.githubReferenceId.length > 0
       ? state.githubReferences.find((reference) => reference.id === metadataForm.githubReferenceId) ??
         null
+      : null;
+  const selectedScheduledBlock =
+    selectedScheduledBlockId !== null
+      ? state.scheduledBlocks.find((block) => block.id === selectedScheduledBlockId) ?? null
       : null;
 
   return (
@@ -542,11 +552,17 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                   <ul className="entity-list entity-list--timeline">
                     {state.scheduledBlocks.map((block) => (
                       <li className="entity-row" key={block.id}>
-                        <div>
+                        <button
+                          className="entity-row__body-button"
+                          onClick={() => setSelectedScheduledBlockId(block.id)}
+                          type="button"
+                        >
                           <strong>{block.title_override ?? task.title}</strong>
                           <span>{formatTimeRange(block.starts_at, block.ends_at)}</span>
-                        </div>
-                        <span className={`pill pill--${block.status}`}>{block.status}</span>
+                        </button>
+                        <span className={`pill pill--${block.status}`}>
+                          {formatScheduledBlockStatus(block.status)}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -799,6 +815,17 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 }}
               />
             </QuickActionDialog>
+          ) : null}
+
+          {selectedScheduledBlock ? (
+            <PlannedSessionDialog
+              onChanged={loadTaskDetail}
+              onClose={() => setSelectedScheduledBlockId(null)}
+              onOpenTask={() => undefined}
+              scheduledBlock={selectedScheduledBlock}
+              showOpenTaskAction={false}
+              tasks={state.tasks}
+            />
           ) : null}
         </>
       ) : null}

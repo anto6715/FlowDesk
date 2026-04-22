@@ -1,4 +1,4 @@
-import { type TaskStatus } from "./api";
+import { type ScheduledBlockStatus, type TaskStatus } from "./api";
 
 const taskStatusLabels: Record<TaskStatus, string> = {
   inbox: "Backlog",
@@ -16,4 +16,11 @@ export function formatTaskStatus(status: TaskStatus) {
 
 export function plannedSessionCountLabel(count: number) {
   return count === 1 ? "1 planned session" : `${count} planned sessions`;
+}
+
+export function formatScheduledBlockStatus(status: ScheduledBlockStatus) {
+  if (status === "canceled") {
+    return "Canceled";
+  }
+  return status[0].toUpperCase() + status.slice(1);
 }

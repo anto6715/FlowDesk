@@ -1055,6 +1055,14 @@ textarea {
   text-decoration: underline;
 }
 
+.entity-row__meta-stack {
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
 .entity-row--alert {
   border-color: rgba(169, 60, 60, 0.24);
   background: rgba(247, 216, 216, 0.42);
@@ -1270,6 +1278,17 @@ textarea {
   font-size: 0.82rem;
 }
 
+.calendar-block--completed {
+  border-color: rgba(15, 109, 97, 0.12);
+  background: rgba(212, 237, 231, 0.48);
+}
+
+.calendar-block--canceled {
+  border-color: rgba(95, 88, 80, 0.14);
+  background: rgba(95, 88, 80, 0.09);
+  box-shadow: none;
+}
+
 .calendar-empty {
   position: absolute;
   inset: 50% auto auto 50%;
@@ -1289,6 +1308,46 @@ textarea {
 
 .journal-list {
   counter-reset: journal;
+}
+
+.planned-session-dialog {
+  display: grid;
+  gap: 1rem;
+}
+
+.planned-session-summary {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.planned-session-summary div {
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid rgba(30, 27, 24, 0.07);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.planned-session-summary span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.planned-session-summary strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.planned-session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .journal-list--long {
@@ -1649,6 +1708,10 @@ textarea {
     flex-direction: column;
   }
 
+  .entity-row__meta-stack {
+    justify-items: start;
+  }
+
   .entity-row .pill {
     align-self: flex-start;
   }
@@ -1694,6 +1757,10 @@ textarea {
 
   .operations-grid--journal,
   .operations-grid--calendar {
+    grid-template-columns: 1fr;
+  }
+
+  .planned-session-summary {
     grid-template-columns: 1fr;
   }
 }
