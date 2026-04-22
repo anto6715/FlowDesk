@@ -8,9 +8,12 @@ import {
 
 import {
   createTask,
+  getActiveTask,
   listGitHubReferences,
   listMacroActivities,
   listTasks,
+  startTask,
+  switchTask,
   type GitHubReference,
   type MacroActivity,
   type Task,
@@ -19,6 +22,7 @@ import {
   type WaitingReason
 } from "../../shared/api";
 import { formatGitHubReference, QuickActionDialog, TaskCreateForm } from "../../shared/forms";
+import { formatTaskStatus } from "../../shared/labels";
 
 type TaskStatusFilter = "open" | TaskStatus;
 type PriorityFilter = "all" | TaskPriority;
@@ -28,6 +32,7 @@ interface GlobalTasksState {
   tasks: Task[];
   macroActivities: MacroActivity[];
   githubReferences: GitHubReference[];
+  activeTaskId: string | null;
   syncedAt: Date | null;
 }
 
@@ -39,14 +44,15 @@ const initialState: GlobalTasksState = {
   tasks: [],
   macroActivities: [],
   githubReferences: [],
+  activeTaskId: null,
   syncedAt: null
 };
 
 const taskStatusFilters: Array<{ value: TaskStatusFilter; label: string }> = [
   { value: "open", label: "Open" },
-  { value: "inbox", label: "Inbox" },
+  { value: "inbox", label: "Backlog" },
   { value: "ready", label: "Ready" },
-  { value: "in_progress", label: "In progress" },
+  { value: "in_progress", label: "Active" },
   { value: "waiting", label: "Waiting" },
   { value: "blocked", label: "Blocked" },
   { value: "done", label: "Done" },
@@ -83,10 +89,6 @@ function formatDateTime(iso: string | null) {
   }).format(new Date(iso));
 }
 
-function statusLabel(status: TaskStatus) {
-  return status.replace(/_/g, " ");
-}
-
 function waitingLabel(value: WaitingReason | null) {
   return value === null ? "none" : value.replace(/_/g, " ");
 }
@@ -105,21 +107,24 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
   const [waitingFilter, setWaitingFilter] = useState<WaitingFilter>("all");
   const [macroActivityFilter, setMacroActivityFilter] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const deferredQuery = useDeferredValue(query);
 
   async function loadGlobalTasks() {
     setIsLoading(true);
     try {
-      const [tasks, macroActivities, githubReferences] = await Promise.all([
+      const [tasks, macroActivities, githubReferences, activeTask] = await Promise.all([
         listTasks(),
         listMacroActivities(),
-        listGitHubReferences()
+        listGitHubReferences(),
+        getActiveTask()
       ]);
       startTransition(() => {
         setState({
           tasks,
           macroActivities,
           githubReferences,
+          activeTaskId: activeTask.task?.id ?? null,
           syncedAt: new Date()
         });
         setError(null);
@@ -184,6 +189,33 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
     setStatusFilter(event.target.value as TaskStatusFilter);
   }
 
+  async function handleBeginTask(taskId: string) {
+    setBusyTaskId(taskId);
+    try {
+      if (state.activeTaskId && state.activeTaskId !== taskId) {
+        await switchTask(state.activeTaskId, taskId);
+      } else if (!state.activeTaskId) {
+        await startTask(taskId);
+      }
+      await loadGlobalTasks();
+    } catch (taskError) {
+      setError(taskError instanceof Error ? taskError.message : "Failed to start task.");
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+
+  const backlogTasks = state.tasks.filter((task) => task.status === "inbox");
+  const readyTasks = state.tasks.filter((task) => task.status === "ready");
+  const waitingTasks = state.tasks.filter((task) => task.status === "waiting");
+  const blockedTasks = state.tasks.filter((task) => task.status === "blocked");
+  const workflowLanes: Array<{ label: string; tasks: Task[]; empty: string }> = [
+    { label: "Backlog", tasks: backlogTasks, empty: "No backlog tasks." },
+    { label: "Ready", tasks: readyTasks, empty: "No ready tasks." },
+    { label: "Waiting", tasks: waitingTasks, empty: "No waiting tasks." },
+    { label: "Blocked", tasks: blockedTasks, empty: "No blocked tasks." }
+  ];
+
   return (
     <main className="page-shell">
       <section className="hero hero--compact task-page-hero">
@@ -210,21 +242,42 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
 
       <section className="task-count-strip" aria-label="Global task counts">
         <article>
-          <span>Open</span>
-          <strong className="big-number">
-            {state.tasks.filter((task) => !["done", "archived"].includes(task.status)).length}
-          </strong>
+          <span>Backlog</span>
+          <strong className="big-number">{backlogTasks.length}</strong>
+        </article>
+        <article>
+          <span>Ready</span>
+          <strong className="big-number">{readyTasks.length}</strong>
         </article>
         <article>
           <span>Waiting</span>
           <strong className="big-number">{countByStatus(state.tasks, "waiting")}</strong>
         </article>
-        <article>
-          <span>Urgent</span>
-          <strong className="big-number">
-            {state.tasks.filter((task) => task.priority === "urgent").length}
-          </strong>
-        </article>
+      </section>
+
+      <section className="task-lane-grid" aria-label="Task workflow lanes">
+        {workflowLanes.map((lane) => (
+          <article className="task-lane" key={lane.label}>
+            <div className="task-lane__header">
+              <span>{lane.label}</span>
+              <strong>{lane.tasks.length}</strong>
+            </div>
+            {lane.tasks.length > 0 ? (
+              <ul>
+                {lane.tasks.slice(0, 3).map((task) => (
+                  <li key={task.id}>
+                    <button onClick={() => onOpenTask(task.id)} type="button">
+                      <strong>{task.title}</strong>
+                      <span>{task.priority}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>{lane.empty}</p>
+            )}
+          </article>
+        ))}
       </section>
 
       <section className="panel panel--wide task-list-panel">
@@ -308,7 +361,7 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
                 <th>State</th>
                 <th>References</th>
                 <th>Updated</th>
-                <th>Open</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -319,6 +372,8 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
                 const githubReference = task.github_reference_id
                   ? githubReferenceLookup.get(task.github_reference_id)
                   : null;
+                const isActiveTask = state.activeTaskId === task.id;
+                const isTaskBusy = busyTaskId === task.id;
 
                 return (
                   <tr key={task.id}>
@@ -335,7 +390,7 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
                     <td data-label="State">
                       <div className="pill-row pill-row--tight">
                         <span className={`pill pill--${task.status}`}>
-                          {statusLabel(task.status)}
+                          {formatTaskStatus(task.status)}
                         </span>
                         <span className={`pill pill--priority-${task.priority}`}>
                           {task.priority}
@@ -361,14 +416,36 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
                       </span>
                     </td>
                     <td data-label="Updated">{formatDateTime(task.updated_at)}</td>
-                    <td data-label="Open">
-                      <button
-                        className="button button--ghost button--small"
-                        onClick={() => onOpenTask(task.id)}
-                        type="button"
-                      >
-                        Detail
-                      </button>
+                    <td data-label="Actions">
+                      <div className="table-actions table-actions--compact">
+                        {!["done", "archived"].includes(task.status) ? (
+                          <button
+                            className={
+                              isActiveTask
+                                ? "button button--inactive button--small"
+                                : "button button--accent button--small"
+                            }
+                            disabled={busyTaskId !== null || isActiveTask}
+                            onClick={() => void handleBeginTask(task.id)}
+                            type="button"
+                          >
+                            {isActiveTask
+                              ? "Active"
+                              : isTaskBusy
+                                ? "Working..."
+                                : state.activeTaskId
+                                ? "Switch"
+                                : "Start"}
+                          </button>
+                        ) : null}
+                        <button
+                          className="button button--ghost button--small"
+                          onClick={() => onOpenTask(task.id)}
+                          type="button"
+                        >
+                          Detail
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

@@ -35,6 +35,7 @@ import {
   TaskCreateForm,
   TaskSelect
 } from "../../shared/forms";
+import { formatTaskStatus } from "../../shared/labels";
 
 const waitingOptions: Array<{ value: WaitingReason; label: string }> = [
   { value: "experiment_running", label: "Experiment running" },
@@ -109,10 +110,6 @@ function formatElapsed(startedAt: string | null) {
   return `${String(hours).padStart(2, "0")}h ${String(minutes).padStart(2, "0")}m`;
 }
 
-function statusLabel(status: Task["status"]) {
-  return status.replace(/_/g, " ");
-}
-
 function waitingLabel(value: WaitingReason | null) {
   if (value === null) {
     return "none";
@@ -141,7 +138,11 @@ function localDayBounds(dayKey: string) {
 
 type HomeQuickAction = "task" | "note" | "experiment" | null;
 
-export function HomePage() {
+interface HomePageProps {
+  onOpenTask: (taskId: string) => void;
+}
+
+export function HomePage({ onOpenTask }: HomePageProps) {
   const [dashboard, setDashboard] = useState<DashboardState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -320,7 +321,9 @@ export function HomePage() {
   const usedGithubReferenceIds = new Set(
     dashboard.tasks.flatMap((task) => (task.github_reference_id ? [task.github_reference_id] : []))
   );
-  const readyTasks = openTasks.filter((task) => task.id !== activeTaskId).slice(0, 4);
+  const readyTasks = openTasks
+    .filter((task) => task.id !== activeTaskId && task.status === "ready")
+    .slice(0, 4);
   const latestJournalEntries = [...dashboard.journalEntries]
     .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
     .slice(0, 3);
@@ -386,7 +389,7 @@ export function HomePage() {
               </p>
               <div className="pill-row">
                 <span className={`pill pill--${dashboard.activeTask.status}`}>
-                  {statusLabel(dashboard.activeTask.status)}
+                  {formatTaskStatus(dashboard.activeTask.status)}
                 </span>
                 <span className={`pill pill--priority-${dashboard.activeTask.priority}`}>
                   {dashboard.activeTask.priority}
@@ -476,7 +479,7 @@ export function HomePage() {
             <>
               <h2>No task is active</h2>
               <p className="summary-copy">
-                Start one of the ready tasks or create a new task when the next action is clear.
+                Start a ready task or open the Tasks workspace to pick from Backlog.
               </p>
               {readyTasks.length > 0 ? (
                 <ul className="entity-list home-ready-list">
@@ -484,7 +487,7 @@ export function HomePage() {
                     <li className="entity-row" key={task.id}>
                       <div>
                         <strong>{task.title}</strong>
-                        <span>{statusLabel(task.status)}</span>
+                        <span>{formatTaskStatus(task.status)}</span>
                       </div>
                       <button
                         className="button button--accent button--small"
@@ -550,27 +553,31 @@ export function HomePage() {
           <div className="home-context-stack">
             <section>
               <div className="home-mini-header">
-                <h3>Planned today</h3>
+                <h3>Planned sessions today</h3>
                 <span>{dashboard.scheduledBlocks.length}</span>
               </div>
               {nextScheduledBlocks.length > 0 ? (
                 <ul className="entity-list entity-list--timeline">
                   {nextScheduledBlocks.map((block) => (
                     <li className="entity-row" key={block.id}>
-                      <div>
+                      <button
+                        className="entity-row__body-button"
+                        onClick={() => onOpenTask(block.task_id)}
+                        type="button"
+                      >
                         <strong>
                           {block.title_override ??
                             taskLookup.get(block.task_id)?.title ??
-                            "Untitled block"}
+                            "Untitled planned session"}
                         </strong>
                         <span>{taskLookup.get(block.task_id)?.title ?? "Unknown task"}</span>
-                      </div>
+                      </button>
                       <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="empty-state">No planned blocks for today.</p>
+                <p className="empty-state">No planned sessions for today.</p>
               )}
             </section>
 
@@ -618,7 +625,7 @@ export function HomePage() {
                         <div>
                           <strong>{task.title}</strong>
                           <span>
-                            {statusLabel(task.status)} - {task.priority}
+                            {formatTaskStatus(task.status)} - {task.priority}
                           </span>
                         </div>
                         <button
@@ -640,16 +647,16 @@ export function HomePage() {
 
             <ul className="home-metric-row" aria-label="Task counts">
               <li>
+                <span>Backlog</span>
+                <strong>{countByStatus(dashboard.tasks, "inbox")}</strong>
+              </li>
+              <li>
                 <span>Waiting</span>
                 <strong>{countByStatus(dashboard.tasks, "waiting")}</strong>
               </li>
               <li>
-                <span>Blocked</span>
-                <strong>{countByStatus(dashboard.tasks, "blocked")}</strong>
-              </li>
-              <li>
-                <span>Done</span>
-                <strong>{countByStatus(dashboard.tasks, "done")}</strong>
+                <span>Planned</span>
+                <strong>{dashboard.scheduledBlocks.length}</strong>
               </li>
             </ul>
           </div>

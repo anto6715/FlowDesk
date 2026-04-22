@@ -8,11 +8,16 @@ import {
   type Task
 } from "../../shared/api";
 import { QuickActionDialog, TaskSelect } from "../../shared/forms";
+import { plannedSessionCountLabel } from "../../shared/labels";
 
 interface CalendarState {
   tasks: Task[];
   scheduledBlocks: ScheduledBlock[];
   syncedAt: Date | null;
+}
+
+interface CalendarPageProps {
+  onOpenTask: (taskId: string) => void;
 }
 
 interface ScheduleFormState {
@@ -104,7 +109,7 @@ function minutesFromLocalDayStart(dayKey: string, iso: string) {
   return Math.round((new Date(iso).getTime() - dayStart.getTime()) / 60000);
 }
 
-export function CalendarPage() {
+export function CalendarPage({ onOpenTask }: CalendarPageProps) {
   const [state, setState] = useState<CalendarState>(initialState);
   const [calendarDay, setCalendarDay] = useState(localDateKey());
   const [isLoading, setIsLoading] = useState(true);
@@ -186,7 +191,7 @@ export function CalendarPage() {
   async function handleCreateScheduledBlock(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (selectedTaskId.length === 0) {
-      setError("Pick a task before scheduling a block.");
+      setError("Pick a task before scheduling a planned session.");
       return;
     }
 
@@ -208,7 +213,7 @@ export function CalendarPage() {
       await loadCalendar(calendarDay);
       setIsScheduleDialogOpen(false);
     } catch (scheduleError) {
-      setError(scheduleError instanceof Error ? scheduleError.message : "Failed to schedule block.");
+      setError(scheduleError instanceof Error ? scheduleError.message : "Failed to schedule planned session.");
     } finally {
       setIsScheduling(false);
     }
@@ -235,7 +240,7 @@ export function CalendarPage() {
             onClick={() => setIsScheduleDialogOpen(true)}
             type="button"
           >
-            + Block
+            + Session
           </button>
           <div className="sync-chip sync-chip--quiet">
             <span>{isLoading ? "Loading..." : "Planning feed"}</span>
@@ -250,8 +255,8 @@ export function CalendarPage() {
         <article className="panel panel--stack calendar-board-panel">
           <div className="panel-header">
             <div>
-              <p className="section-kicker">Planned blocks</p>
-              <h2>{state.scheduledBlocks.length} blocks</h2>
+              <p className="section-kicker">Planned sessions</p>
+              <h2>{plannedSessionCountLabel(state.scheduledBlocks.length)}</h2>
             </div>
           </div>
 
@@ -269,23 +274,25 @@ export function CalendarPage() {
                 <span className="calendar-hour-line" key={hour} />
               ))}
               {visibleBlocks.map(({ block, top, height }) => (
-                <article
+                <button
                   className="calendar-block"
                   key={block.id}
+                  onClick={() => onOpenTask(block.task_id)}
                   style={{
                     top: `${top}%`,
                     height: `${height}%`
                   }}
+                  type="button"
                 >
                   <strong>
-                    {block.title_override ?? taskLookup.get(block.task_id)?.title ?? "Untitled block"}
+                    {block.title_override ?? taskLookup.get(block.task_id)?.title ?? "Untitled planned session"}
                   </strong>
                   <span>{taskLookup.get(block.task_id)?.title ?? "Unknown task"}</span>
                   <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
-                </article>
+                </button>
               ))}
               {state.scheduledBlocks.length === 0 ? (
-                <p className="calendar-empty">No planned blocks for this day.</p>
+                <p className="calendar-empty">No planned sessions for this day.</p>
               ) : null}
             </div>
           </div>
@@ -294,12 +301,16 @@ export function CalendarPage() {
             <ul className="entity-list entity-list--timeline">
               {state.scheduledBlocks.map((block) => (
                 <li className="entity-row" key={block.id}>
-                  <div>
+                  <button
+                    className="entity-row__body-button"
+                    onClick={() => onOpenTask(block.task_id)}
+                    type="button"
+                  >
                     <strong>
-                      {block.title_override ?? taskLookup.get(block.task_id)?.title ?? "Untitled block"}
+                      {block.title_override ?? taskLookup.get(block.task_id)?.title ?? "Untitled planned session"}
                     </strong>
                     <span>{taskLookup.get(block.task_id)?.title ?? "Unknown task"}</span>
-                  </div>
+                  </button>
                   <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
                 </li>
               ))}
@@ -312,7 +323,7 @@ export function CalendarPage() {
         <QuickActionDialog
           kicker="Schedule"
           onClose={() => setIsScheduleDialogOpen(false)}
-          title="New block"
+          title="New planned session"
           wide
         >
           <form
@@ -364,7 +375,7 @@ export function CalendarPage() {
               disabled={isScheduling || selectedTaskId.length === 0}
               type="submit"
             >
-              {isScheduling ? "Scheduling..." : "Schedule block"}
+              {isScheduling ? "Scheduling..." : "Schedule session"}
             </button>
           </form>
         </QuickActionDialog>

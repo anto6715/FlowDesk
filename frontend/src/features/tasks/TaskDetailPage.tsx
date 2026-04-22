@@ -23,6 +23,7 @@ import {
 } from "../../shared/api";
 import { ExperimentCreateForm, formatGitHubReference, QuickActionDialog } from "../../shared/forms";
 import { parseGitHubIssueOrPullUrl } from "../../shared/github";
+import { formatTaskStatus, plannedSessionCountLabel } from "../../shared/labels";
 
 interface TaskDetailPageProps {
   taskId: string;
@@ -381,7 +382,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 <h2>{task.title}</h2>
                 <p className="summary-copy">{task.description || "No description yet."}</p>
                 <div className="pill-row">
-                  <span className={`pill pill--${task.status}`}>{statusLabel(task.status)}</span>
+                  <span className={`pill pill--${task.status}`}>{formatTaskStatus(task.status)}</span>
                   <span className={`pill pill--priority-${task.priority}`}>{task.priority}</span>
                 </div>
                 <div className="task-overview-actions">
@@ -457,7 +458,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                 <div className="reference-list">
                   <div>
                     <span>Status</span>
-                    <strong>{statusLabel(task.status)}</strong>
+                    <strong>{formatTaskStatus(task.status)}</strong>
                   </div>
                   <div>
                     <span>Priority</span>
@@ -533,8 +534,8 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
               <article className="panel panel--stack">
                 <div className="panel-header panel-header--compact">
                   <div>
-                    <p className="section-kicker">Planned blocks</p>
-                    <h2>{state.scheduledBlocks.length} blocks</h2>
+                    <p className="section-kicker">Planned sessions</p>
+                    <h2>{plannedSessionCountLabel(state.scheduledBlocks.length)}</h2>
                   </div>
                 </div>
                 {state.scheduledBlocks.length > 0 ? (
@@ -550,7 +551,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                     ))}
                   </ul>
                 ) : (
-                  <p className="empty-state">No planned blocks for this task.</p>
+                  <p className="empty-state">No planned sessions for this task.</p>
                 )}
               </article>
 

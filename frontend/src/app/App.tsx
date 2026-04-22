@@ -52,7 +52,7 @@ export function App() {
         </nav>
       </aside>
       <div className="app-main">
-        {activeView === "today" ? <HomePage /> : null}
+        {activeView === "today" ? <HomePage onOpenTask={openTaskDetail} /> : null}
         {activeView === "tasks" ? <GlobalTasksPage onOpenTask={openTaskDetail} /> : null}
         {activeView === "task-detail" && selectedTaskId !== null ? (
           <TaskDetailPage
@@ -64,7 +64,7 @@ export function App() {
         ) : null}
         {activeView === "experiments" ? <ExperimentsPage /> : null}
         {activeView === "journal" ? <JournalPage /> : null}
-        {activeView === "calendar" ? <CalendarPage /> : null}
+        {activeView === "calendar" ? <CalendarPage onOpenTask={openTaskDetail} /> : null}
       </div>
     </div>
   );
