@@ -46,6 +46,7 @@
 - UX redesign Point 5 redesigned Journal, Experiments, and Calendar committed in `4d6bf09`
 - UX redesign Point 6 visual and mobile polish committed in `d9336fe`
 - Post-redesign task workflow UI polish committed in `e7ae703`
+- Planned-session interaction UI committed in `ba3540a`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
@@ -75,8 +76,8 @@
   - notes-first task detail workspace with read-only context, dialog-based metadata editing, experiment creation, references, sessions, linked experiments, and planned sessions
   - Journal workspace centered on daily writing with lightweight optional task linking
   - Experiments registry with compact counts, scannable table rows, state selector, and dialog-based registration
-  - Calendar day timeline with dialog-based planned session creation
-  - planned sessions on Home and Calendar open their linked task detail
+  - Calendar day timeline with dialog-based planned session creation and management
+  - planned sessions on Home, Calendar, and task detail open a management dialog for rescheduling, completing, canceling/reopening, and starting/switching to the linked task
   - mobile task and experiment tables render as stacked card rows instead of horizontal scrollers
   - desktop/mobile visual smoke pass for Home, Tasks, Task Detail, Journal, Experiments, and Calendar with no page-level horizontal overflow
   - Vite proxy to the backend `/api`
@@ -114,7 +115,7 @@ When resuming a future session:
 3. Read `docs/ux-redesign-plan.md`
 4. Check `git status --short`
 5. Confirm whether the user wants feedback-driven UI polish or the next backend/product slice
-6. If continuing UI polish, start with experiment detail/comments, then Journal note editing and task-reference autocomplete, then planned-session edit/reschedule/cancel affordances
+6. If continuing UI polish, start with experiment detail/comments, then Journal note editing and task-reference autocomplete
 7. Default later product slice is reporting, backup/export/import, experiment detail, then URL-backed routing
 
 ## Near-term implementation order
@@ -122,8 +123,7 @@ When resuming a future session:
 1. Continue user-feedback UI polish before adding broad new features
 2. Next UI slice: experiment detail page with instruction/code-friendly visualization and experiment-scoped notes/comments
 3. Then: Journal note editing plus smarter task linking/autocomplete
-4. Then: planned-session edit/reschedule/cancel interactions
-5. Resume reporting, backup/export/import, and URL-backed routing after the UI workflow is stable enough for user testing
+4. Resume reporting, backup/export/import, and URL-backed routing after the UI workflow is stable enough for user testing
 
 ## Commit guidance
 

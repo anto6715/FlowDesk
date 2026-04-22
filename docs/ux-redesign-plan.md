@@ -22,8 +22,9 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - Point 6 completed in `d9336fe`.
 - UX redesign pass is complete.
 - Post-redesign task workflow UI polish completed in `e7ae703`.
+- Planned-session interaction polish completed in `ba3540a`.
 - Current priority is continued UI polish before broad new backend/product features.
-- Next UI slice should start with experiment detail/comments, then Journal note editing and smarter task linking, then planned-session edit/reschedule/cancel interactions.
+- Next UI slice should start with experiment detail/comments, then Journal note editing and smarter task linking.
 
 ## Redesign goals
 
@@ -145,7 +146,24 @@ Acceptance:
 - Existing backend contracts remain intact.
 - `npm run build`, backend tests, `git diff --check`, and browser overflow smoke pass all pass.
 
-### Slice 2. Experiment detail and comments
+### Slice 2. Planned-session interaction polish
+
+Status: completed in `ba3540a`.
+
+Scope:
+
+- Add a management dialog for planned sessions from Home, Calendar, and task detail.
+- Expose reschedule, complete, cancel/reopen, and linked-task start/switch actions.
+- Preserve the backend `ScheduledBlock` naming internally.
+- Keep visible user-facing language as `Planned session`.
+
+Acceptance:
+
+- A planned session is not just a static calendar item.
+- Start/end inputs remain non-overlapping on mobile and desktop.
+- Browser interaction check can open a Calendar planned session and find Reschedule, Cancel session, and Start/Switch task actions.
+
+### Slice 3. Experiment detail and comments
 
 Status: next, ask before starting.
 
@@ -162,7 +180,7 @@ Acceptance:
 - Experiment notes are visible and appendable from experiment detail.
 - Long commands/instructions do not break layout on desktop or mobile.
 
-### Slice 3. Journal editing and task references
+### Slice 4. Journal editing and task references
 
 Status: planned.
 
@@ -176,21 +194,6 @@ Acceptance:
 
 - Existing notes can be corrected without leaving the Journal flow.
 - Task links are easier to add than using a raw dropdown for every note.
-
-### Slice 4. Planned-session interaction polish
-
-Status: planned.
-
-Scope:
-
-- Add edit/reschedule/cancel affordances for planned sessions from Calendar and task detail.
-- Preserve the backend `ScheduledBlock` naming internally.
-- Keep visible user-facing language as `Planned session`.
-
-Acceptance:
-
-- A planned session is not just a static calendar item.
-- Start/end inputs remain non-overlapping on mobile and desktop.
 
 ## Verification per point
 

@@ -37,10 +37,10 @@ Implemented so far:
 - left-panel navigation for Home, Tasks, Journal, Experiments, and Calendar
 - focused Tasks workspace with Backlog/Ready/Waiting/Blocked workflow lanes, compact counts, filters, Start/Switch actions, mobile card rows, and dialog-based creation
 - Backlog is the UI label for backend inbox tasks; there is no separate backlog model yet
-- notes-first task detail workspace with dialog-based metadata editing, experiment creation, and planned session visibility
+- notes-first task detail workspace with dialog-based metadata editing, experiment creation, and planned session management
 - Journal workspace centered on daily writing with optional task links
 - Experiments registry with compact counts, scannable rows, state selector, and dialog-based registration
-- Calendar day timeline with dialog-based planned session creation and task-detail navigation from scheduled items
+- Calendar day timeline with dialog-based planned session creation and management
 - desktop/mobile visual pass with no page-level horizontal overflow
 - backend API tests against temporary SQLite databases
 - verified frontend production build
@@ -101,10 +101,9 @@ Near-term implementation order:
 1. User-test the updated Home, Tasks, Task detail, Journal, Experiments, and Calendar workflows.
 2. Continue UI polish with experiment detail pages, instruction/code visualization, and experiment-scoped notes/comments.
 3. Add Journal note editing and smarter task linking/autocomplete.
-4. Add planned-session edit/reschedule/cancel interactions.
-5. Add report read models and reporting UI.
-6. Add backup/export/import baseline.
-7. Replace local view switching with URL-backed routing when navigation state needs deep links.
+4. Add report read models and reporting UI.
+5. Add backup/export/import baseline.
+6. Replace local view switching with URL-backed routing when navigation state needs deep links.
 
 ## Design references
 
