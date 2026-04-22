@@ -1428,6 +1428,16 @@ textarea {
     flex-direction: column;
   }
 
+  .hero h1 {
+    font-size: clamp(2.25rem, 11vw, 3rem);
+    line-height: 1;
+    overflow-wrap: anywhere;
+  }
+
+  .task-detail-hero h1 {
+    font-size: clamp(1.95rem, 9vw, 2.45rem);
+  }
+
   .home-toolbar {
     justify-content: flex-start;
     width: 100%;
@@ -1473,6 +1483,75 @@ textarea {
     right: 0.45rem;
     left: 0.45rem;
     padding: 0.65rem 0.7rem;
+  }
+
+  .table-frame {
+    overflow-x: visible;
+  }
+
+  .task-table {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .task-table thead {
+    display: none;
+  }
+
+  .task-table tbody {
+    display: grid;
+    gap: 0.85rem;
+    width: 100%;
+  }
+
+  .task-table tr {
+    display: grid;
+    gap: 0.8rem;
+    width: 100%;
+    min-width: 0;
+    padding: 1rem;
+    border: 1px solid rgba(30, 27, 24, 0.08);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.42);
+  }
+
+  .task-table td {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .task-table td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .task-table td > span {
+    margin-top: 0;
+  }
+
+  .task-table td > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .entity-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .entity-row .pill {
+    align-self: flex-start;
   }
 }
 

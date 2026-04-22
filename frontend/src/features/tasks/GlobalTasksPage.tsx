@@ -322,7 +322,7 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
 
                 return (
                   <tr key={task.id}>
-                    <td>
+                    <td data-label="Task">
                       <button
                         className="task-title-button"
                         onClick={() => onOpenTask(task.id)}
@@ -332,7 +332,7 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
                       </button>
                       <span>{task.description || "No description"}</span>
                     </td>
-                    <td>
+                    <td data-label="State">
                       <div className="pill-row pill-row--tight">
                         <span className={`pill pill--${task.status}`}>
                           {statusLabel(task.status)}
@@ -343,7 +343,7 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
                       </div>
                       <span>Waiting: {waitingLabel(task.waiting_reason)}</span>
                     </td>
-                    <td>
+                    <td data-label="References">
                       <span>{macroActivity?.name ?? "No macro-activity"}</span>
                       <span>
                         {githubReference ? (
@@ -360,8 +360,8 @@ export function GlobalTasksPage({ onOpenTask }: GlobalTasksPageProps) {
                         )}
                       </span>
                     </td>
-                    <td>{formatDateTime(task.updated_at)}</td>
-                    <td>
+                    <td data-label="Updated">{formatDateTime(task.updated_at)}</td>
+                    <td data-label="Open">
                       <button
                         className="button button--ghost button--small"
                         onClick={() => onOpenTask(task.id)}

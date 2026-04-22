@@ -215,25 +215,25 @@ export function ExperimentsPage() {
             <tbody>
               {filteredExperiments.map((experiment) => (
                 <tr key={experiment.id}>
-                  <td>
+                  <td data-label="Experiment">
                     <strong>{experiment.title}</strong>
                     <span>{taskLookup.get(experiment.task_id)?.title ?? "Unknown task"}</span>
                     <span>{experiment.instruction || "No instruction"}</span>
                   </td>
-                  <td>
+                  <td data-label="State">
                     <span className={`pill pill--${experiment.status}`}>
                       {experiment.status}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Runtime">
                     <span>Started: {formatDateTime(experiment.started_at)}</span>
                     <span>Ended: {formatDateTime(experiment.ended_at)}</span>
                   </td>
-                  <td>
+                  <td data-label="Scheduler">
                     {experiment.scheduler_name || "None"}
                     {experiment.scheduler_job_id ? ` #${experiment.scheduler_job_id}` : ""}
                   </td>
-                  <td>
+                  <td data-label="Set state">
                     <select
                       aria-label={`Set state for ${experiment.title}`}
                       disabled={busyExperimentId === experiment.id}
