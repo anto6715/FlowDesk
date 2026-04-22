@@ -21,7 +21,9 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - Point 5 completed in `4d6bf09`.
 - Point 6 completed in `d9336fe`.
 - UX redesign pass is complete.
-- Next work should start from reporting, backup/export/import, experiment detail, and URL-backed routing unless user feedback reprioritizes UI polish.
+- Post-redesign task workflow UI polish completed in `e7ae703`.
+- Current priority is continued UI polish before broad new backend/product features.
+- Next UI slice should start with experiment detail/comments, then Journal note editing and smarter task linking, then planned-session edit/reschedule/cancel interactions.
 
 ## Redesign goals
 
@@ -123,6 +125,72 @@ Acceptance:
 
 - Browser screenshot pass has no obvious layout overlap or horizontal page overflow.
 - Verification passes.
+
+## Post-Redesign Feedback Slices
+
+### Slice 1. Task workflow language and planned-session navigation
+
+Status: completed in `e7ae703`.
+
+Scope:
+
+- Use `Backlog` as the visible label for backend `inbox` tasks without adding a new model.
+- Rename visible planned block language to `Planned sessions` while keeping the backend `ScheduledBlock` contract intact.
+- Add Backlog/Ready/Waiting/Blocked lanes to the Tasks workspace.
+- Add Start/Switch actions from the Tasks table.
+- Let planned sessions on Home and Calendar open the linked task detail.
+
+Acceptance:
+
+- Existing backend contracts remain intact.
+- `npm run build`, backend tests, `git diff --check`, and browser overflow smoke pass all pass.
+
+### Slice 2. Experiment detail and comments
+
+Status: next, ask before starting.
+
+Scope:
+
+- Add an experiment detail view.
+- Make experiment instruction and launch command easy to inspect as code-like text.
+- Surface experiment-scoped notes/comments in the detail view.
+- Keep experiment creation secondary, not a dominant page form.
+
+Acceptance:
+
+- An experiment can be opened from the registry.
+- Experiment notes are visible and appendable from experiment detail.
+- Long commands/instructions do not break layout on desktop or mobile.
+
+### Slice 3. Journal editing and task references
+
+Status: planned.
+
+Scope:
+
+- Allow editing existing daily journal notes.
+- Improve task linking from journal writing, preferably with a lightweight `#` task-reference picker.
+- Do not assume task titles are globally unique unless the backend contract is explicitly changed.
+
+Acceptance:
+
+- Existing notes can be corrected without leaving the Journal flow.
+- Task links are easier to add than using a raw dropdown for every note.
+
+### Slice 4. Planned-session interaction polish
+
+Status: planned.
+
+Scope:
+
+- Add edit/reschedule/cancel affordances for planned sessions from Calendar and task detail.
+- Preserve the backend `ScheduledBlock` naming internally.
+- Keep visible user-facing language as `Planned session`.
+
+Acceptance:
+
+- A planned session is not just a static calendar item.
+- Start/end inputs remain non-overlapping on mobile and desktop.
 
 ## Verification per point
 

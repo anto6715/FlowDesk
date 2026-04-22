@@ -45,6 +45,7 @@
 - UX redesign Point 4 redesigned task workspaces committed in `5e25f8d`
 - UX redesign Point 5 redesigned Journal, Experiments, and Calendar committed in `4d6bf09`
 - UX redesign Point 6 visual and mobile polish committed in `d9336fe`
+- Post-redesign task workflow UI polish committed in `e7ae703`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
@@ -69,11 +70,13 @@
   - left-panel navigation for Home, Tasks, Journal, Experiments, and Calendar
   - dedicated `Experiments`, `Journal`, and `Calendar` views
   - dedicated experiment registration form
-  - focused Tasks workspace with compact counts, filters, task table, and dialog-based task creation
-  - notes-first task detail workspace with read-only context, dialog-based metadata editing, experiment creation, references, sessions, linked experiments, and planned blocks
+  - focused Tasks workspace with Backlog/Ready/Waiting/Blocked workflow lanes, compact counts, filters, task table, Start/Switch actions, and dialog-based task creation
+  - `Backlog` is the frontend label for backend `Task.status == "inbox"`; no separate backlog entity exists
+  - notes-first task detail workspace with read-only context, dialog-based metadata editing, experiment creation, references, sessions, linked experiments, and planned sessions
   - Journal workspace centered on daily writing with lightweight optional task linking
   - Experiments registry with compact counts, scannable table rows, state selector, and dialog-based registration
-  - Calendar day timeline with dialog-based scheduled block creation
+  - Calendar day timeline with dialog-based planned session creation
+  - planned sessions on Home and Calendar open their linked task detail
   - mobile task and experiment tables render as stacked card rows instead of horizontal scrollers
   - desktop/mobile visual smoke pass for Home, Tasks, Task Detail, Journal, Experiments, and Calendar with no page-level horizontal overflow
   - Vite proxy to the backend `/api`
@@ -111,12 +114,16 @@ When resuming a future session:
 3. Read `docs/ux-redesign-plan.md`
 4. Check `git status --short`
 5. Confirm whether the user wants feedback-driven UI polish or the next backend/product slice
-6. Default next product slice is reporting, backup/export/import, experiment detail, then URL-backed routing
+6. If continuing UI polish, start with experiment detail/comments, then Journal note editing and task-reference autocomplete, then planned-session edit/reschedule/cancel affordances
+7. Default later product slice is reporting, backup/export/import, experiment detail, then URL-backed routing
 
 ## Near-term implementation order
 
-1. Incorporate user feedback from the redesigned UI pass
-2. Resume reporting, backup/export/import, experiment detail, and URL-backed routing work unless user feedback reprioritizes UI polish
+1. Continue user-feedback UI polish before adding broad new features
+2. Next UI slice: experiment detail page with instruction/code-friendly visualization and experiment-scoped notes/comments
+3. Then: Journal note editing plus smarter task linking/autocomplete
+4. Then: planned-session edit/reschedule/cancel interactions
+5. Resume reporting, backup/export/import, and URL-backed routing after the UI workflow is stable enough for user testing
 
 ## Commit guidance
 

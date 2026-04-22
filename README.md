@@ -35,11 +35,12 @@ Implemented so far:
 - redesigned Home focused on active task, recent journal notes, and compact next-up context
 - task creation with inline macro-activity and URL-first GitHub reference selection/creation
 - left-panel navigation for Home, Tasks, Journal, Experiments, and Calendar
-- focused Tasks workspace with compact counts, filters, mobile card rows, and dialog-based creation
-- notes-first task detail workspace with dialog-based metadata editing and experiment creation
+- focused Tasks workspace with Backlog/Ready/Waiting/Blocked workflow lanes, compact counts, filters, Start/Switch actions, mobile card rows, and dialog-based creation
+- Backlog is the UI label for backend inbox tasks; there is no separate backlog model yet
+- notes-first task detail workspace with dialog-based metadata editing, experiment creation, and planned session visibility
 - Journal workspace centered on daily writing with optional task links
 - Experiments registry with compact counts, scannable rows, state selector, and dialog-based registration
-- Calendar day timeline with dialog-based scheduled block creation
+- Calendar day timeline with dialog-based planned session creation and task-detail navigation from scheduled items
 - desktop/mobile visual pass with no page-level horizontal overflow
 - backend API tests against temporary SQLite databases
 - verified frontend production build
@@ -98,11 +99,12 @@ npm run build
 Near-term implementation order:
 
 1. User-test the updated Home, Tasks, Task detail, Journal, Experiments, and Calendar workflows.
-2. Patch UI feedback from that pass, especially modal ergonomics, task-detail density, and calendar readability.
-3. Add report read models and reporting UI.
-4. Add backup/export/import baseline.
-5. Add experiment detail notes/artifacts UI.
-6. Replace local view switching with URL-backed routing when navigation state needs deep links.
+2. Continue UI polish with experiment detail pages, instruction/code visualization, and experiment-scoped notes/comments.
+3. Add Journal note editing and smarter task linking/autocomplete.
+4. Add planned-session edit/reschedule/cancel interactions.
+5. Add report read models and reporting UI.
+6. Add backup/export/import baseline.
+7. Replace local view switching with URL-backed routing when navigation state needs deep links.
 
 ## Design references
 
