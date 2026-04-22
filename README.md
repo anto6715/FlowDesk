@@ -13,7 +13,7 @@ The product combines:
 
 ## Current status
 
-This repository contains the agreed design checkpoint and the first working local app slices.
+This repository contains the agreed design checkpoint and the current working local app slices.
 
 The current implementation shape is:
 
@@ -32,13 +32,15 @@ Implemented so far:
 - scheduled-block planning APIs with move/status history
 - daily journal, task-linked journal entry, task note, and experiment note APIs
 - task work-session history read API
-- Home frontend focused on active task and journal
+- redesigned Home focused on active task, recent journal notes, and compact next-up context
 - task creation with inline macro-activity and URL-first GitHub reference selection/creation
 - left-panel navigation for Home, Tasks, Journal, Experiments, and Calendar
-- dedicated Experiments, Journal, and Calendar views
-- dedicated experiment registration form
-- task detail workspace with prominent notes, experiment creation, metadata editing, references, sessions, linked experiments, and planned blocks
-- calendar day timeline with a non-overlapping schedule form
+- focused Tasks workspace with compact counts, filters, mobile card rows, and dialog-based creation
+- notes-first task detail workspace with dialog-based metadata editing and experiment creation
+- Journal workspace centered on daily writing with optional task links
+- Experiments registry with compact counts, scannable rows, state selector, and dialog-based registration
+- Calendar day timeline with dialog-based scheduled block creation
+- desktop/mobile visual pass with no page-level horizontal overflow
 - backend API tests against temporary SQLite databases
 - verified frontend production build
 
@@ -47,9 +49,7 @@ Implemented so far:
 - `backend/`
 - `frontend/`
 - `docs/`
-- `scripts/`
 - `artifacts/`
-- `tests/`
 
 ## Architecture baseline
 
@@ -59,7 +59,7 @@ Implemented so far:
 - Delivery shape: local-first web app first, desktop packaging later
 - Backend stack: Python, FastAPI, SQLAlchemy, Alembic, SQLite
 - Frontend baseline: React + Vite
-- Planned frontend additions during feature work: TanStack Router, TanStack Query, TanStack Table, FullCalendar
+- Potential later frontend additions: URL-backed routing and richer reporting/table/calendar helpers when the workflows need them
 
 ## Getting started
 
@@ -98,7 +98,7 @@ npm run build
 Near-term implementation order:
 
 1. User-test the updated Home, Tasks, Task detail, Journal, Experiments, and Calendar workflows.
-2. Patch UI feedback from that pass, especially task-note prominence, left-nav sizing, and modal/drawer ergonomics.
+2. Patch UI feedback from that pass, especially modal ergonomics, task-detail density, and calendar readability.
 3. Add report read models and reporting UI.
 4. Add backup/export/import baseline.
 5. Add experiment detail notes/artifacts UI.

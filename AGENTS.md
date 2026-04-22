@@ -44,6 +44,7 @@
 - UX redesign Point 3 shared frontend form components committed in `980f66a`
 - UX redesign Point 4 redesigned task workspaces committed in `5e25f8d`
 - UX redesign Point 5 redesigned Journal, Experiments, and Calendar committed in `4d6bf09`
+- UX redesign Point 6 visual and mobile polish committed in `d9336fe`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
@@ -73,6 +74,8 @@
   - Journal workspace centered on daily writing with lightweight optional task linking
   - Experiments registry with compact counts, scannable table rows, state selector, and dialog-based registration
   - Calendar day timeline with dialog-based scheduled block creation
+  - mobile task and experiment tables render as stacked card rows instead of horizontal scrollers
+  - desktop/mobile visual smoke pass for Home, Tasks, Task Detail, Journal, Experiments, and Calendar with no page-level horizontal overflow
   - Vite proxy to the backend `/api`
   - verified production build with `npm run build`
 
@@ -107,14 +110,13 @@ When resuming a future session:
 2. Read `docs/design-checkpoint.md`
 3. Read `docs/ux-redesign-plan.md`
 4. Check `git status --short`
-5. Continue from the current UX redesign point, not from scratch
-6. Ask the user before switching to the next UX redesign point
+5. Confirm whether the user wants feedback-driven UI polish or the next backend/product slice
+6. Default next product slice is reporting, backup/export/import, experiment detail, then URL-backed routing
 
 ## Near-term implementation order
 
-1. Continue `docs/ux-redesign-plan.md` point by point
-2. Ask the user before moving from one redesign point to the next
-3. After the redesign pass, resume reporting, backup/export/import, experiment detail, and URL-backed routing work
+1. Incorporate user feedback from the redesigned UI pass
+2. Resume reporting, backup/export/import, experiment detail, and URL-backed routing work unless user feedback reprioritizes UI polish
 
 ## Commit guidance
 

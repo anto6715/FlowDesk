@@ -19,8 +19,9 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - Point 3 completed in `980f66a`.
 - Point 4 completed in `5e25f8d`.
 - Point 5 completed in `4d6bf09`.
-- Point 6 has not started.
-- Ask the user before starting Point 6.
+- Point 6 completed in `d9336fe`.
+- UX redesign pass is complete.
+- Next work should start from reporting, backup/export/import, experiment detail, and URL-backed routing unless user feedback reprioritizes UI polish.
 
 ## Redesign goals
 
@@ -109,6 +110,8 @@ Acceptance:
 - Creation forms no longer dominate default layouts.
 
 ### Point 6. Visual and mobile polish
+
+Status: completed in `d9336fe`.
 
 Scope:
 
