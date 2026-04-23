@@ -24,6 +24,11 @@ interface ExperimentsState {
   syncedAt: Date | null;
 }
 
+interface ExperimentsPageProps {
+  onOpenExperiment: (experimentId: string) => void;
+  onOpenTask: (taskId: string) => void;
+}
+
 const initialState: ExperimentsState = {
   experiments: [],
   tasks: [],
@@ -60,7 +65,7 @@ function formatDateTime(iso: string | null) {
   }).format(new Date(iso));
 }
 
-export function ExperimentsPage() {
+export function ExperimentsPage({ onOpenExperiment, onOpenTask }: ExperimentsPageProps) {
   const [state, setState] = useState<ExperimentsState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
   const [busyExperimentId, setBusyExperimentId] = useState<string | null>(null);
@@ -216,8 +221,24 @@ export function ExperimentsPage() {
               {filteredExperiments.map((experiment) => (
                 <tr key={experiment.id}>
                   <td data-label="Experiment">
-                    <strong>{experiment.title}</strong>
-                    <span>{taskLookup.get(experiment.task_id)?.title ?? "Unknown task"}</span>
+                    <button
+                      className="task-title-button"
+                      onClick={() => onOpenExperiment(experiment.id)}
+                      type="button"
+                    >
+                      {experiment.title}
+                    </button>
+                    {taskLookup.get(experiment.task_id) ? (
+                      <button
+                        className="text-button"
+                        onClick={() => onOpenTask(experiment.task_id)}
+                        type="button"
+                      >
+                        {taskLookup.get(experiment.task_id)?.title}
+                      </button>
+                    ) : (
+                      <span>Unknown task</span>
+                    )}
                     <span>{experiment.instruction || "No instruction"}</span>
                   </td>
                   <td data-label="State">

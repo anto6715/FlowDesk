@@ -33,6 +33,7 @@ import { PlannedSessionDialog } from "../../shared/plannedSessions";
 interface TaskDetailPageProps {
   taskId: string;
   onBack: () => void;
+  onOpenExperiment: (experimentId: string) => void;
 }
 
 interface TaskDetailState {
@@ -156,7 +157,7 @@ function formatTimeRange(startsAt: string, endsAt: string) {
   return `${formatter.format(new Date(startsAt))} - ${formatter.format(new Date(endsAt))}`;
 }
 
-export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
+export function TaskDetailPage({ taskId, onBack, onOpenExperiment }: TaskDetailPageProps) {
   const [state, setState] = useState<TaskDetailState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingMetadata, setIsSavingMetadata] = useState(false);
@@ -526,10 +527,14 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
                   <ul className="entity-list">
                     {state.experiments.map((experiment) => (
                       <li className="entity-row" key={experiment.id}>
-                        <div>
+                        <button
+                          className="entity-row__body-button"
+                          onClick={() => onOpenExperiment(experiment.id)}
+                          type="button"
+                        >
                           <strong>{experiment.title}</strong>
                           <span>{experiment.instruction || "No instruction"}</span>
-                        </div>
+                        </button>
                         <span className={`pill pill--${experiment.status}`}>
                           {experiment.status}
                         </span>

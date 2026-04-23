@@ -1055,6 +1055,10 @@ textarea {
   text-decoration: underline;
 }
 
+.entity-row__body-button span {
+  overflow-wrap: anywhere;
+}
+
 .entity-row__meta-stack {
   display: grid;
   justify-items: end;
@@ -1400,6 +1404,16 @@ textarea {
   font-weight: 800;
 }
 
+.note-link-chip--button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.note-link-chip--button:hover {
+  text-decoration: underline;
+}
+
 .journal-list p {
   margin: 0.45rem 0 0;
   line-height: 1.55;
@@ -1465,6 +1479,49 @@ textarea {
 .task-title-button:hover {
   color: var(--accent);
   text-decoration: underline;
+}
+
+.task-title-button--large {
+  display: block;
+  margin-top: 1rem;
+  font-size: 1rem;
+}
+
+.text-button {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 0.35rem;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.text-button:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.code-panel {
+  overflow-x: auto;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid rgba(30, 27, 24, 0.08);
+  border-radius: 0.5rem;
+  background: rgba(30, 27, 24, 0.06);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .table-actions {

@@ -365,6 +365,10 @@ export async function listExperiments(options?: {
   );
 }
 
+export async function getExperiment(experimentId: string): Promise<Experiment> {
+  return request<Experiment>(`/experiments/${experimentId}`);
+}
+
 export async function registerExperiment(input: CreateExperimentInput): Promise<Experiment> {
   return request<Experiment>("/experiments", {
     method: "POST",
@@ -448,6 +452,17 @@ export async function listTaskNotes(taskId: string): Promise<Note[]> {
 
 export async function addTaskNote(taskId: string, content: string): Promise<Note> {
   return request<Note>(`/tasks/${taskId}/notes`, {
+    method: "POST",
+    body: JSON.stringify({ content })
+  });
+}
+
+export async function listExperimentNotes(experimentId: string): Promise<Note[]> {
+  return request<Note[]>(`/experiments/${experimentId}/notes`);
+}
+
+export async function addExperimentNote(experimentId: string, content: string): Promise<Note> {
+  return request<Note>(`/experiments/${experimentId}/notes`, {
     method: "POST",
     body: JSON.stringify({ content })
   });

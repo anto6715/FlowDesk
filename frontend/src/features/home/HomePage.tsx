@@ -140,10 +140,11 @@ function localDayBounds(dayKey: string) {
 type HomeQuickAction = "task" | "note" | "experiment" | null;
 
 interface HomePageProps {
+  onOpenExperiment: (experimentId: string) => void;
   onOpenTask: (taskId: string) => void;
 }
 
-export function HomePage({ onOpenTask }: HomePageProps) {
+export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
   const [dashboard, setDashboard] = useState<DashboardState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -326,6 +327,9 @@ export function HomePage({ onOpenTask }: HomePageProps) {
   const readyTasks = openTasks
     .filter((task) => task.id !== activeTaskId && task.status === "ready")
     .slice(0, 4);
+  const backlogTasks = openTasks
+    .filter((task) => task.id !== activeTaskId && task.status === "inbox")
+    .slice(0, 4);
   const latestJournalEntries = [...dashboard.journalEntries]
     .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
     .slice(0, 3);
@@ -439,6 +443,17 @@ export function HomePage({ onOpenTask }: HomePageProps) {
               <div className="action-row home-active-actions">
                 <button
                   className="button button--ghost"
+                  onClick={() => {
+                    if (activeTaskId) {
+                      onOpenTask(activeTaskId);
+                    }
+                  }}
+                  type="button"
+                >
+                  Open detail
+                </button>
+                <button
+                  className="button button--ghost"
                   disabled={busyTaskId === dashboard.activeTask.id}
                   onClick={() => void handlePauseActiveTask("pause")}
                   type="button"
@@ -491,10 +506,14 @@ export function HomePage({ onOpenTask }: HomePageProps) {
                 <ul className="entity-list home-ready-list">
                   {readyTasks.map((task) => (
                     <li className="entity-row" key={task.id}>
-                      <div>
+                      <button
+                        className="entity-row__body-button"
+                        onClick={() => onOpenTask(task.id)}
+                        type="button"
+                      >
                         <strong>{task.title}</strong>
                         <span>{formatTaskStatus(task.status)}</span>
-                      </div>
+                      </button>
                       <button
                         className="button button--accent button--small"
                         disabled={busyTaskId === task.id}
@@ -534,9 +553,17 @@ export function HomePage({ onOpenTask }: HomePageProps) {
                 <li key={entry.id}>
                   <time>{formatDateTime(entry.created_at)}</time>
                   {entry.task_id ? (
-                    <span className="note-link-chip">
+                    <button
+                      className="note-link-chip note-link-chip--button"
+                      onClick={() => {
+                        if (entry.task_id) {
+                          onOpenTask(entry.task_id);
+                        }
+                      }}
+                      type="button"
+                    >
                       {taskLookup.get(entry.task_id)?.title ?? "Linked task"}
-                    </span>
+                    </button>
                   ) : null}
                   <p>{entry.content}</p>
                 </li>
@@ -557,6 +584,33 @@ export function HomePage({ onOpenTask }: HomePageProps) {
           </div>
 
           <div className="home-context-stack">
+            <section>
+              <div className="home-mini-header">
+                <h3>Backlog</h3>
+                <span>{countByStatus(dashboard.tasks, "inbox")}</span>
+              </div>
+              {backlogTasks.length > 0 ? (
+                <ul className="entity-list">
+                  {backlogTasks.map((task) => (
+                    <li className="entity-row" key={task.id}>
+                      <button
+                        className="entity-row__body-button"
+                        onClick={() => onOpenTask(task.id)}
+                        type="button"
+                      >
+                        <strong>{task.title}</strong>
+                        <span>
+                          {formatTaskStatus(task.status)} - {task.priority}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="empty-state">No backlog tasks.</p>
+              )}
+            </section>
+
             <section>
               <div className="home-mini-header">
                 <h3>Planned sessions today</h3>
@@ -608,10 +662,14 @@ export function HomePage({ onOpenTask }: HomePageProps) {
                       }
                       key={experiment.id}
                     >
-                      <div>
+                      <button
+                        className="entity-row__body-button"
+                        onClick={() => onOpenExperiment(experiment.id)}
+                        type="button"
+                      >
                         <strong>{experiment.title}</strong>
                         <span>{taskLookup.get(experiment.task_id)?.title ?? "Unknown task"}</span>
-                      </div>
+                      </button>
                       <span className={`pill pill--${experiment.status}`}>
                         {experiment.status}
                       </span>
@@ -633,12 +691,16 @@ export function HomePage({ onOpenTask }: HomePageProps) {
                   <ul className="entity-list home-ready-list">
                     {readyTasks.map((task) => (
                       <li className="entity-row" key={task.id}>
-                        <div>
+                        <button
+                          className="entity-row__body-button"
+                          onClick={() => onOpenTask(task.id)}
+                          type="button"
+                        >
                           <strong>{task.title}</strong>
                           <span>
                             {formatTaskStatus(task.status)} - {task.priority}
                           </span>
-                        </div>
+                        </button>
                         <button
                           className="button button--ghost button--small"
                           disabled={busyTaskId === task.id}
