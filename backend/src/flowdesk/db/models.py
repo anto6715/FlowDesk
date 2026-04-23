@@ -98,6 +98,12 @@ class NoteScope(StrEnum):
     EXPERIMENT = "experiment"
 
 
+class NoteBlockLinkTargetType(StrEnum):
+    TASK = "task"
+    EXPERIMENT = "experiment"
+    TAG = "tag"
+
+
 class ArtifactKind(StrEnum):
     WORKDIR = "workdir"
     REPOSITORY = "repository"
@@ -398,6 +404,107 @@ class Note(Base):
             name="note_scope_target_match",
         ),
     )
+
+
+class NoteBlock(Base):
+    __tablename__ = "note_blocks"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    journal_day: Mapped[date] = mapped_column(nullable=False, index=True)
+    parent_id: Mapped[str | None] = mapped_column(
+        ForeignKey("note_blocks.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    legacy_note_id: Mapped[str | None] = mapped_column(
+        ForeignKey("notes.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    sort_order: Mapped[int] = mapped_column(Integer(), nullable=False, default=0, index=True)
+    content_markdown: Mapped[str] = mapped_column(Text(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+        onupdate=utcnow,
+        nullable=False,
+    )
+
+    parent: Mapped[NoteBlock | None] = relationship(
+        "NoteBlock",
+        remote_side="NoteBlock.id",
+        back_populates="children",
+    )
+    children: Mapped[list[NoteBlock]] = relationship(
+        "NoteBlock",
+        back_populates="parent",
+    )
+    legacy_note: Mapped[Note | None] = relationship(foreign_keys=[legacy_note_id])
+    links: Mapped[list[NoteBlockLink]] = relationship(
+        back_populates="note_block",
+        cascade="all, delete-orphan",
+    )
+
+
+class NoteBlockLink(Base):
+    __tablename__ = "note_block_links"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    note_block_id: Mapped[str] = mapped_column(
+        ForeignKey("note_blocks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    target_type: Mapped[NoteBlockLinkTargetType] = mapped_column(
+        sql_enum(NoteBlockLinkTargetType, name="note_block_link_target_type"),
+        nullable=False,
+        index=True,
+    )
+    task_id: Mapped[str | None] = mapped_column(
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    experiment_id: Mapped[str | None] = mapped_column(
+        ForeignKey("experiments.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    tag_name: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utcnow,
+        nullable=False,
+    )
+
+    note_block: Mapped[NoteBlock] = relationship(back_populates="links")
+
+    __table_args__ = (
+        CheckConstraint(
+            "("
+            "(target_type = 'task' AND task_id IS NOT NULL AND experiment_id IS NULL AND tag_name IS NULL) "
+            "OR "
+            "(target_type = 'experiment' AND task_id IS NULL AND experiment_id IS NOT NULL AND tag_name IS NULL) "
+            "OR "
+            "(target_type = 'tag' AND task_id IS NULL AND experiment_id IS NULL AND tag_name IS NOT NULL)"
+            ")",
+            name="note_block_link_target_match",
+        ),
+    )
+
+    @property
+    def target_id(self) -> str | None:
+        if self.target_type == NoteBlockLinkTargetType.TASK:
+            return self.task_id
+        if self.target_type == NoteBlockLinkTargetType.EXPERIMENT:
+            return self.experiment_id
+        return None
 
 
 class ArtifactReference(Base):
