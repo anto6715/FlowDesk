@@ -67,7 +67,12 @@ Implemented so far:
 Backend:
 
 ```bash
-cd backend
+cd /work/antonio/mydev/hpc_task_management
+mkdir -p artifacts
+
+export FLOWDESK_DATABASE_URL="sqlite:////work/antonio/mydev/hpc_task_management/artifacts/flowdesk.db"
+
+cd /work/antonio/mydev/hpc_task_management/backend
 uv sync
 uv run alembic upgrade head
 uv run uvicorn flowdesk.main:app --host 127.0.0.1 --port 8000 --reload
@@ -76,12 +81,19 @@ uv run uvicorn flowdesk.main:app --host 127.0.0.1 --port 8000 --reload
 Frontend:
 
 ```bash
-cd frontend
+cd /work/antonio/mydev/hpc_task_management/frontend
 npm install
 npm run dev
 ```
 
 By default the frontend dev server proxies `/api` to `http://127.0.0.1:8000`.
+
+Open the app at `http://127.0.0.1:5173/`.
+
+The important part is using the same `FLOWDESK_DATABASE_URL` for `alembic upgrade head`
+and `uvicorn`. Without that, Alembic may create one SQLite file while the app looks for
+another one. The default database URL is `sqlite:///./flowdesk.db`, which is relative to
+the directory where the backend command is run.
 
 Useful verification commands:
 
