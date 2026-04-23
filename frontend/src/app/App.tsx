@@ -97,7 +97,7 @@ export function App() {
             onOpenTask={openTaskDetail}
           />
         ) : null}
-        {activeView === "journal" ? <JournalPage /> : null}
+        {activeView === "journal" ? <JournalPage onOpenTask={openTaskDetail} /> : null}
         {activeView === "calendar" ? <CalendarPage onOpenTask={openTaskDetail} /> : null}
       </div>
     </div>

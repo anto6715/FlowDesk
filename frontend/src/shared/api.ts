@@ -39,6 +39,7 @@ export type ExperimentStatus =
 export type ScheduledBlockStatus = "planned" | "completed" | "canceled";
 
 export type NoteScope = "daily_journal" | "task" | "experiment";
+export type NoteBlockLinkTargetType = "task" | "experiment" | "tag";
 
 export interface Task {
   id: string;
@@ -218,6 +219,44 @@ export interface Note {
   content: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface NoteBlockLink {
+  id: string;
+  target_type: NoteBlockLinkTargetType;
+  target_id: string | null;
+  tag_name: string | null;
+}
+
+export interface NoteBlock {
+  id: string;
+  journal_day: string;
+  parent_id: string | null;
+  legacy_note_id: string | null;
+  sort_order: number;
+  content_markdown: string;
+  links: NoteBlockLink[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteBlockReferenceInput {
+  target_type: Extract<NoteBlockLinkTargetType, "task" | "experiment">;
+  target_id: string;
+}
+
+export interface CreateNoteBlockInput {
+  content_markdown: string;
+  parent_id?: string | null;
+  sort_order?: number | null;
+  references?: NoteBlockReferenceInput[];
+}
+
+export interface UpdateNoteBlockInput {
+  content_markdown?: string;
+  parent_id?: string | null;
+  sort_order?: number | null;
+  references?: NoteBlockReferenceInput[];
 }
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "/api";
@@ -435,6 +474,10 @@ export async function listJournalEntries(journalDay: string): Promise<Note[]> {
   return request<Note[]>(`/journal/${journalDay}/entries`);
 }
 
+export async function listJournalNoteBlocks(journalDay: string): Promise<NoteBlock[]> {
+  return request<NoteBlock[]>(`/journal/${journalDay}/blocks`);
+}
+
 export async function appendJournalEntry(
   journalDay: string,
   content: string,
@@ -443,6 +486,26 @@ export async function appendJournalEntry(
   return request<Note>(`/journal/${journalDay}/entries`, {
     method: "POST",
     body: JSON.stringify({ content, task_id: taskId ?? null })
+  });
+}
+
+export async function createJournalNoteBlock(
+  journalDay: string,
+  input: CreateNoteBlockInput
+): Promise<NoteBlock> {
+  return request<NoteBlock>(`/journal/${journalDay}/blocks`, {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function updateNoteBlock(
+  noteBlockId: string,
+  input: UpdateNoteBlockInput
+): Promise<NoteBlock> {
+  return request<NoteBlock>(`/note-blocks/${noteBlockId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input)
   });
 }
 

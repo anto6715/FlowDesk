@@ -1414,10 +1414,187 @@ textarea {
   text-decoration: underline;
 }
 
+.note-link-chip--tag {
+  background: var(--warm-soft);
+  color: #8d4c24;
+}
+
+.note-link-chip--experiment {
+  background: rgba(30, 27, 24, 0.1);
+  color: var(--text);
+}
+
 .journal-list p {
   margin: 0.45rem 0 0;
   line-height: 1.55;
   overflow-wrap: anywhere;
+}
+
+.bullet-note--editing {
+  background: rgba(212, 237, 231, 0.34);
+}
+
+.bullet-note__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.bullet-note__timestamps {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.bullet-note__edited {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.bullet-note__edit {
+  margin-top: -0.1rem;
+}
+
+.bullet-note__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+.bullet-note__chips .note-link-chip {
+  margin-top: 0;
+}
+
+.note-editor {
+  gap: 0.95rem;
+}
+
+.note-editor__body textarea {
+  min-height: 9.5rem;
+}
+
+.note-editor--compact .note-editor__body textarea {
+  min-height: 7rem;
+}
+
+.note-editor__hint {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.note-editor__hint code,
+.markdown-inline-code {
+  padding: 0.15rem 0.38rem;
+  border-radius: 0.45rem;
+  background: rgba(30, 27, 24, 0.08);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.note-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.markdown-content {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.7rem;
+}
+
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.markdown-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-paragraph {
+  margin: 0;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.markdown-heading {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", serif;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.markdown-heading--large {
+  font-size: 1.18rem;
+}
+
+.markdown-heading--small {
+  font-size: 0.95rem;
+}
+
+.markdown-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.markdown-list--ordered {
+  padding-left: 1.35rem;
+}
+
+.markdown-list li {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.markdown-list li::before {
+  content: none;
+}
+
+.markdown-list li + li {
+  margin-top: 0;
+}
+
+.markdown-quote {
+  margin: 0;
+  padding-left: 0.95rem;
+  border-left: 3px solid rgba(15, 109, 97, 0.24);
+  color: var(--muted);
+}
+
+.markdown-ref {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0.18rem;
+  padding: 0.18rem 0.48rem;
+  border-radius: 999px;
+  background: var(--cool-soft);
+  color: var(--cool);
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.markdown-ref--experiment {
+  background: rgba(30, 27, 24, 0.1);
+  color: var(--text);
+}
+
+.markdown-ref--button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.markdown-ref--button:hover {
+  text-decoration: underline;
 }
 
 .table-frame {

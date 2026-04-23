@@ -1,18 +1,17 @@
 import {
   startTransition,
-  type FormEvent,
   useEffect,
   useEffectEvent,
   useState
 } from "react";
 
 import {
-  appendJournalEntry,
+  createJournalNoteBlock,
   createTask,
   getActiveTask,
   listExperiments,
   listGitHubReferences,
-  listJournalEntries,
+  listJournalNoteBlocks,
   listMacroActivities,
   listScheduledBlocks,
   listTasks,
@@ -20,10 +19,11 @@ import {
   registerExperiment,
   startTask,
   switchTask,
+  updateNoteBlock,
   type Experiment,
   type GitHubReference,
   type MacroActivity,
-  type Note,
+  type NoteBlock,
   type ScheduledBlock,
   type Task,
   type WaitingReason
@@ -32,10 +32,14 @@ import {
   ExperimentCreateForm,
   formatGitHubReference,
   QuickActionDialog,
-  TaskCreateForm,
-  TaskSelect
+  TaskCreateForm
 } from "../../shared/forms";
 import { formatScheduledBlockStatus, formatTaskStatus } from "../../shared/labels";
+import {
+  BulletNoteCard,
+  BulletNoteEditor,
+  primaryTaskIdForNoteBlock
+} from "../../shared/notes";
 import { PlannedSessionDialog } from "../../shared/plannedSessions";
 
 const waitingOptions: Array<{ value: WaitingReason; label: string }> = [
@@ -57,7 +61,7 @@ interface DashboardState {
   runningExperiments: Experiment[];
   stalledExperiments: Experiment[];
   scheduledBlocks: ScheduledBlock[];
-  journalEntries: Note[];
+  journalBlocks: NoteBlock[];
   journalDay: string;
   syncedAt: Date | null;
 }
@@ -71,7 +75,7 @@ const initialState: DashboardState = {
   runningExperiments: [],
   stalledExperiments: [],
   scheduledBlocks: [],
-  journalEntries: [],
+  journalBlocks: [],
   journalDay: localDateKey(),
   syncedAt: null
 };
@@ -137,7 +141,12 @@ function localDayBounds(dayKey: string) {
   };
 }
 
-type HomeQuickAction = "task" | "note" | "experiment" | null;
+type HomeQuickAction =
+  | { kind: "task" }
+  | { kind: "note-create" }
+  | { kind: "note-edit"; block: NoteBlock }
+  | { kind: "experiment" }
+  | null;
 
 interface HomePageProps {
   onOpenExperiment: (experimentId: string) => void;
@@ -148,14 +157,11 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
   const [dashboard, setDashboard] = useState<DashboardState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isAppendingJournal, setIsAppendingJournal] = useState(false);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [quickAction, setQuickAction] = useState<HomeQuickAction>(null);
   const [selectedScheduledBlockId, setSelectedScheduledBlockId] = useState<string | null>(null);
   const [waitingReason, setWaitingReason] = useState<WaitingReason>("experiment_running");
-  const [journalEntry, setJournalEntry] = useState("");
-  const [journalTaskId, setJournalTaskId] = useState("");
 
   async function loadDashboard(options?: { background?: boolean }) {
     if (options?.background) {
@@ -175,7 +181,7 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
         runningExperiments,
         stalledExperiments,
         scheduledBlocks,
-        journalEntries
+        journalBlocks
       ] = await Promise.all([
         listTasks(),
         listMacroActivities(),
@@ -188,7 +194,7 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
           ends_after: dayBounds.startsAt,
           starts_before: dayBounds.endsAt
         }),
-        listJournalEntries(journalDay)
+        listJournalNoteBlocks(journalDay)
       ]);
       startTransition(() => {
         setDashboard({
@@ -200,7 +206,7 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
           runningExperiments,
           stalledExperiments,
           scheduledBlocks,
-          journalEntries,
+          journalBlocks,
           journalDay,
           syncedAt: new Date()
         });
@@ -286,30 +292,26 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
   }
 
   function openQuickAction(action: Exclude<HomeQuickAction, null>) {
-    if (action === "note" && journalTaskId.length === 0 && dashboard.activeTask) {
-      setJournalTaskId(dashboard.activeTask.id);
-    }
     setQuickAction(action);
   }
 
-  async function handleAppendJournalEntry(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (journalEntry.trim().length === 0) {
-      setError("Journal entry is required.");
-      return;
+  async function handleSaveJournalBlock(input: {
+    contentMarkdown: string;
+    references: Array<{ target_type: "task" | "experiment"; target_id: string }>;
+  }) {
+    if (quickAction?.kind === "note-edit") {
+      await updateNoteBlock(quickAction.block.id, {
+        content_markdown: input.contentMarkdown,
+        references: input.references
+      });
+    } else {
+      await createJournalNoteBlock(dashboard.journalDay, {
+        content_markdown: input.contentMarkdown,
+        references: input.references
+      });
     }
-
-    setIsAppendingJournal(true);
-    try {
-      await appendJournalEntry(dashboard.journalDay, journalEntry.trim(), journalTaskId || null);
-      setJournalEntry("");
-      setQuickAction(null);
-      await loadDashboard({ background: true });
-    } catch (journalError) {
-      setError(journalError instanceof Error ? journalError.message : "Failed to append entry.");
-    } finally {
-      setIsAppendingJournal(false);
-    }
+    setQuickAction(null);
+    await loadDashboard({ background: true });
   }
 
   const openTasks = dashboard.tasks.filter((task) => !["done", "archived"].includes(task.status));
@@ -330,8 +332,8 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
   const backlogTasks = openTasks
     .filter((task) => task.id !== activeTaskId && task.status === "inbox")
     .slice(0, 4);
-  const latestJournalEntries = [...dashboard.journalEntries]
-    .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+  const latestJournalBlocks = [...dashboard.journalBlocks]
+    .sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime())
     .slice(0, 3);
   const nextScheduledBlocks = [...dashboard.scheduledBlocks]
     .sort((left, right) => new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime())
@@ -356,21 +358,21 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
           <div className="home-action-group" aria-label="Quick actions">
             <button
               className="button button--accent button--mini"
-              onClick={() => openQuickAction("task")}
+              onClick={() => openQuickAction({ kind: "task" })}
               type="button"
             >
               + Task
             </button>
             <button
               className="button button--ghost button--mini"
-              onClick={() => openQuickAction("note")}
+              onClick={() => openQuickAction({ kind: "note-create" })}
               type="button"
             >
               + Note
             </button>
             <button
               className="button button--ghost button--mini"
-              onClick={() => openQuickAction("experiment")}
+              onClick={() => openQuickAction({ kind: "experiment" })}
               type="button"
             >
               + Experiment
@@ -540,37 +542,27 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
             </div>
             <button
               className="button button--ghost button--mini"
-              onClick={() => openQuickAction("note")}
+              onClick={() => openQuickAction({ kind: "note-create" })}
               type="button"
             >
               + Note
             </button>
           </div>
 
-          {latestJournalEntries.length > 0 ? (
+          {latestJournalBlocks.length > 0 ? (
             <ol className="journal-list">
-              {latestJournalEntries.map((entry) => (
-                <li key={entry.id}>
-                  <time>{formatDateTime(entry.created_at)}</time>
-                  {entry.task_id ? (
-                    <button
-                      className="note-link-chip note-link-chip--button"
-                      onClick={() => {
-                        if (entry.task_id) {
-                          onOpenTask(entry.task_id);
-                        }
-                      }}
-                      type="button"
-                    >
-                      {taskLookup.get(entry.task_id)?.title ?? "Linked task"}
-                    </button>
-                  ) : null}
-                  <p>{entry.content}</p>
-                </li>
+              {latestJournalBlocks.map((block) => (
+                <BulletNoteCard
+                  block={block}
+                  key={block.id}
+                  onEdit={(nextBlock) => setQuickAction({ kind: "note-edit", block: nextBlock })}
+                  onOpenTask={onOpenTask}
+                  taskLookup={taskLookup}
+                />
               ))}
             </ol>
           ) : (
-            <p className="empty-state">No journal entries yet today.</p>
+            <p className="empty-state">No journal bullets yet today.</p>
           )}
         </article>
 
@@ -740,15 +732,17 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
         <QuickActionDialog
           onClose={() => setQuickAction(null)}
           title={
-            quickAction === "task"
+            quickAction.kind === "task"
               ? "New task"
-              : quickAction === "note"
-                ? "New note"
+              : quickAction.kind === "note-edit"
+                ? "Edit note"
+                : quickAction.kind === "note-create"
+                  ? "New note"
                 : "New experiment"
           }
-          wide={quickAction === "task"}
+          wide={quickAction.kind === "task"}
         >
-          {quickAction === "task" ? (
+          {quickAction.kind === "task" ? (
             <TaskCreateForm
               descriptionPlaceholder="Capture what you need to do next, not the whole project context."
               githubReferences={dashboard.githubReferences}
@@ -766,47 +760,29 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
             />
           ) : null}
 
-          {quickAction === "note" ? (
-            <form
-              className="compact-form compact-form--flush"
-              onSubmit={(event) => void handleAppendJournalEntry(event)}
-            >
-              <TaskSelect
-                includeUnassigned
-                label="Linked task"
-                onChange={setJournalTaskId}
-                tasks={openTasks}
-                value={journalTaskId}
-              />
-              <label>
-                <span>Quick note</span>
-                <textarea
-                  onChange={(event) => setJournalEntry(event.target.value)}
-                  placeholder="Capture the observation while it is fresh."
-                  rows={6}
-                  value={journalEntry}
-                />
-              </label>
-              <div className="form-actions">
-                <button
-                  className="button button--ghost"
-                  onClick={() => setQuickAction(null)}
-                  type="button"
-                >
-                  Cancel
-                </button>
-                <button
-                  className="button button--accent"
-                  disabled={isAppendingJournal}
-                  type="submit"
-                >
-                  {isAppendingJournal ? "Appending..." : "Append entry"}
-                </button>
-              </div>
-            </form>
+          {quickAction.kind === "note-create" || quickAction.kind === "note-edit" ? (
+            <BulletNoteEditor
+              autoFocus
+              compact
+              initialContent={
+                quickAction.kind === "note-edit" ? quickAction.block.content_markdown : ""
+              }
+              initialTaskId={
+                quickAction.kind === "note-edit"
+                  ? primaryTaskIdForNoteBlock(quickAction.block)
+                  : dashboard.activeTask?.id ?? ""
+              }
+              onCancel={() => setQuickAction(null)}
+              onError={setError}
+              onSubmit={handleSaveJournalBlock}
+              placeholder="Capture the next note with markdown and #tags."
+              submitLabel={quickAction.kind === "note-edit" ? "Save note" : "Add note"}
+              submittingLabel={quickAction.kind === "note-edit" ? "Saving..." : "Adding..."}
+              tasks={openTasks}
+            />
           ) : null}
 
-          {quickAction === "experiment" ? (
+          {quickAction.kind === "experiment" ? (
             <ExperimentCreateForm
               onCancel={() => setQuickAction(null)}
               onError={setError}

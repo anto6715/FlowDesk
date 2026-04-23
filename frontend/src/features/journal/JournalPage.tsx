@@ -1,13 +1,18 @@
-import { startTransition, type FormEvent, useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 
 import {
-  appendJournalEntry,
-  listJournalEntries,
+  createJournalNoteBlock,
+  listJournalNoteBlocks,
   listTasks,
-  type Note,
+  updateNoteBlock,
+  type NoteBlock,
   type Task
 } from "../../shared/api";
-import { TaskSelect } from "../../shared/forms";
+import {
+  BulletNoteCard,
+  BulletNoteEditor,
+  primaryTaskIdForNoteBlock
+} from "../../shared/notes";
 
 function localDateKey(date = new Date()) {
   const year = date.getFullYear();
@@ -28,33 +33,35 @@ function formatDateTime(iso: string | null) {
 }
 
 interface JournalState {
-  entries: Note[];
+  blocks: NoteBlock[];
   tasks: Task[];
   syncedAt: Date | null;
 }
 
 const initialState: JournalState = {
-  entries: [],
+  blocks: [],
   tasks: [],
   syncedAt: null
 };
 
-export function JournalPage() {
+interface JournalPageProps {
+  onOpenTask: (taskId: string) => void;
+}
+
+export function JournalPage({ onOpenTask }: JournalPageProps) {
   const [state, setState] = useState<JournalState>(initialState);
   const [journalDay, setJournalDay] = useState(localDateKey());
-  const [entryContent, setEntryContent] = useState("");
-  const [entryTaskId, setEntryTaskId] = useState("");
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAppending, setIsAppending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadJournalEntries(day: string) {
+  async function loadJournalBlocks(day: string) {
     setIsLoading(true);
     try {
-      const [entries, tasks] = await Promise.all([listJournalEntries(day), listTasks()]);
+      const [blocks, tasks] = await Promise.all([listJournalNoteBlocks(day), listTasks()]);
       startTransition(() => {
         setState({
-          entries,
+          blocks,
           tasks,
           syncedAt: new Date()
         });
@@ -68,30 +75,42 @@ export function JournalPage() {
   }
 
   useEffect(() => {
-    void loadJournalEntries(journalDay);
+    setEditingBlockId(null);
+    void loadJournalBlocks(journalDay);
   }, [journalDay]);
 
-  async function handleAppendEntry(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (entryContent.trim().length === 0) {
-      setError("Journal entry is required.");
-      return;
-    }
+  async function handleCreateBullet(input: {
+    contentMarkdown: string;
+    references: Array<{ target_type: "task" | "experiment"; target_id: string }>;
+  }) {
+    await createJournalNoteBlock(journalDay, {
+      content_markdown: input.contentMarkdown,
+      references: input.references
+    });
+    await loadJournalBlocks(journalDay);
+  }
 
-    setIsAppending(true);
-    try {
-      await appendJournalEntry(journalDay, entryContent.trim(), entryTaskId || null);
-      setEntryContent("");
-      await loadJournalEntries(journalDay);
-    } catch (appendError) {
-      setError(appendError instanceof Error ? appendError.message : "Failed to append entry.");
-    } finally {
-      setIsAppending(false);
+  async function handleUpdateBullet(
+    blockId: string,
+    input: {
+      contentMarkdown: string;
+      references: Array<{ target_type: "task" | "experiment"; target_id: string }>;
     }
+  ) {
+    await updateNoteBlock(blockId, {
+      content_markdown: input.contentMarkdown,
+      references: input.references
+    });
+    setEditingBlockId(null);
+    await loadJournalBlocks(journalDay);
   }
 
   const taskLookup = new Map(state.tasks.map((task) => [task.id, task]));
   const openTasks = state.tasks.filter((task) => !["done", "archived"].includes(task.status));
+  const editingBlock =
+    editingBlockId !== null
+      ? state.blocks.find((block) => block.id === editingBlockId) ?? null
+      : null;
 
   return (
     <main className="page-shell">
@@ -110,7 +129,7 @@ export function JournalPage() {
             />
           </label>
           <div className="sync-chip sync-chip--quiet">
-            <span>{isLoading ? "Loading..." : "Daily journal"}</span>
+            <span>{isLoading ? "Loading..." : "Bullet journal"}</span>
             <strong>
               {state.syncedAt ? formatDateTime(state.syncedAt.toISOString()) : "Sync pending"}
             </strong>
@@ -126,61 +145,58 @@ export function JournalPage() {
           <div className="panel-header">
             <div>
               <p className="section-kicker">Daily writing</p>
-              <h2>New entry</h2>
+              <h2>New bullet</h2>
             </div>
           </div>
-          <form
-            className="compact-form compact-form--flush journal-composer"
-            onSubmit={(event) => void handleAppendEntry(event)}
-          >
-            <label>
-              <span>Entry</span>
-              <textarea
-                onChange={(event) => setEntryContent(event.target.value)}
-                placeholder="Capture the note."
-                rows={8}
-                value={entryContent}
-              />
-            </label>
-            <div className="journal-compose-actions">
-              <TaskSelect
-                includeUnassigned
-                label="Linked task"
-                onChange={setEntryTaskId}
-                tasks={openTasks}
-                value={entryTaskId}
-              />
-              <button className="button button--accent" disabled={isAppending} type="submit">
-                {isAppending ? "Appending..." : "Append entry"}
-              </button>
-            </div>
-          </form>
+          <BulletNoteEditor
+            onError={setError}
+            onSubmit={handleCreateBullet}
+            placeholder="Capture the next bullet, markdown and #tags included."
+            submitLabel="Add bullet"
+            submittingLabel="Adding..."
+            tasks={openTasks}
+          />
         </article>
 
         <article className="panel panel--stack journal-entry-panel">
           <div className="panel-header panel-header--compact">
             <div>
-              <p className="section-kicker">Daily entries</p>
-              <h2>{state.entries.length} entries</h2>
+              <p className="section-kicker">Daily bullets</p>
+              <h2>{state.blocks.length} bullets</h2>
             </div>
           </div>
 
-          {state.entries.length > 0 ? (
+          {state.blocks.length > 0 ? (
             <ol className="journal-list journal-list--long">
-              {state.entries.map((entry) => (
-                <li key={entry.id}>
-                  <time>{formatDateTime(entry.created_at)}</time>
-                  {entry.task_id ? (
-                    <span className="note-link-chip">
-                      {taskLookup.get(entry.task_id)?.title ?? "Linked task"}
-                    </span>
-                  ) : null}
-                  <p>{entry.content}</p>
-                </li>
-              ))}
+              {state.blocks.map((block) =>
+                editingBlock?.id === block.id ? (
+                  <li className="bullet-note bullet-note--editing" key={block.id}>
+                    <BulletNoteEditor
+                      autoFocus
+                      compact
+                      initialContent={block.content_markdown}
+                      initialTaskId={primaryTaskIdForNoteBlock(block)}
+                      onCancel={() => setEditingBlockId(null)}
+                      onError={setError}
+                      onSubmit={(input) => handleUpdateBullet(block.id, input)}
+                      submitLabel="Save bullet"
+                      submittingLabel="Saving..."
+                      tasks={openTasks}
+                    />
+                  </li>
+                ) : (
+                  <BulletNoteCard
+                    block={block}
+                    key={block.id}
+                    onEdit={(nextBlock) => setEditingBlockId(nextBlock.id)}
+                    onOpenTask={onOpenTask}
+                    taskLookup={taskLookup}
+                  />
+                )
+              )}
             </ol>
           ) : (
-            <p className="empty-state">No entries for this day.</p>
+            <p className="empty-state">No bullets for this day.</p>
           )}
         </article>
       </section>
