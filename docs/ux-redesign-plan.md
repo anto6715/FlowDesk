@@ -26,9 +26,10 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - V2 Point 1 workbench interaction architecture completed in `f8eb66d`.
 - V2 Point 2 note block backend foundation completed in `154f024`.
 - V2 Point 3 bullet journal UI completed in `44605d3`.
+- V2 Point 4 tags, references, and backlinks completed in `a02b8e9`.
 - Current priority is Flow Desk v2 workbench redesign, not isolated page polish.
 - Do not start broad reporting/export work until the workbench and note-linking model are usable.
-- Next implementation point is V2 Point 4. Ask the user before starting it.
+- Next implementation point is V2 Point 5. Ask the user before starting it.
 
 ## Redesign goals
 
@@ -351,7 +352,7 @@ Implementation notes:
 
 ### V2 Point 4. Tags, References, And Backlinks
 
-Status: next, ask before starting.
+Status: completed in `a02b8e9`.
 
 Scope:
 
@@ -366,6 +367,12 @@ Acceptance:
 - From a task, the user can see linked journal bullets.
 - From an experiment, the user can see linked journal bullets.
 - From a tag, the user can see all matching note bullets.
+
+Implementation notes:
+
+- Home and Journal note editors now expose lightweight task/experiment reference insertion controls.
+- Reference labels use stable ids under the hood and disambiguated `title • short-id` display text so duplicate task titles do not break note flows.
+- Task detail, experiment detail, and a dedicated tag view now render backlink bullet streams with clickable task, experiment, and tag references.
 
 ### V2 Point 5. Home Workbench Redesign
 

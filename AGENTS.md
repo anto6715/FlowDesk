@@ -51,6 +51,7 @@
 - V2 Point 1 workbench interaction architecture committed in `f8eb66d`
 - V2 Point 2 note block backend foundation committed in `154f024`
 - V2 Point 3 bullet journal UI committed in `44605d3`
+- V2 Point 4 tags, references, and backlinks committed in `a02b8e9`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
@@ -90,6 +91,9 @@
   - reusable bullet note editor and markdown renderer shared by Home and Journal
   - Home and Journal now use daily note blocks instead of append-only legacy journal rendering
   - existing daily bullets can be edited in place in Journal and from Home quick actions
+  - note editors support lightweight task and experiment reference insertion with stable ids and disambiguated labels
+  - task and experiment detail now surface linked daily-note backlinks
+  - tag chips and note references are clickable, with a dedicated tag view for matching bullets
   - `scripts/dev.sh` starts the local SQLite database path, Alembic migrations, backend, and frontend together
   - mobile task and experiment tables render as stacked card rows instead of horizontal scrollers
   - desktop/mobile visual smoke pass for Home, Tasks, Task Detail, Journal, Experiments, and Calendar with no page-level horizontal overflow
@@ -133,10 +137,9 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. V2 Point 4: tags, references, and backlinks
-2. V2 Point 5: Home workbench redesign
-3. V2 Point 6: experiment detail and comments
-4. V2 Point 7: reporting integration
+1. V2 Point 5: Home workbench redesign
+2. V2 Point 6: experiment detail and comments
+3. V2 Point 7: reporting integration
 
 ## Commit guidance
 
