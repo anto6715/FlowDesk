@@ -64,7 +64,33 @@ Implemented so far:
 
 ## Getting started
 
-Backend:
+Recommended one-command startup:
+
+```bash
+cd /work/antonio/mydev/hpc_task_management
+./scripts/dev.sh
+```
+
+Then open `http://127.0.0.1:5173/`.
+
+The script:
+
+- creates `artifacts/` if needed
+- uses `artifacts/flowdesk.db` as the default SQLite database
+- runs Alembic migrations
+- starts the backend on `http://127.0.0.1:8000`
+- starts the frontend on `http://127.0.0.1:5173`
+- stops both services when you press `Ctrl+C`
+
+Optional overrides:
+
+```bash
+FLOWDESK_DB_PATH=/tmp/flowdesk.db ./scripts/dev.sh
+FLOWDESK_BACKEND_PORT=8010 FLOWDESK_FRONTEND_PORT=5174 ./scripts/dev.sh
+FLOWDESK_SKIP_INSTALL=1 ./scripts/dev.sh
+```
+
+Manual backend startup:
 
 ```bash
 cd /work/antonio/mydev/hpc_task_management
@@ -78,7 +104,7 @@ uv run alembic upgrade head
 uv run uvicorn flowdesk.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Frontend:
+Manual frontend startup:
 
 ```bash
 cd /work/antonio/mydev/hpc_task_management/frontend
@@ -87,8 +113,6 @@ npm run dev
 ```
 
 By default the frontend dev server proxies `/api` to `http://127.0.0.1:8000`.
-
-Open the app at `http://127.0.0.1:5173/`.
 
 The important part is using the same `FLOWDESK_DATABASE_URL` for `alembic upgrade head`
 and `uvicorn`. Without that, Alembic may create one SQLite file while the app looks for

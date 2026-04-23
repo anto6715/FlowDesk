@@ -78,6 +78,7 @@
   - Experiments registry with compact counts, scannable table rows, state selector, and dialog-based registration
   - Calendar day timeline with dialog-based planned session creation and management
   - planned sessions on Home, Calendar, and task detail open a management dialog for rescheduling, completing, canceling/reopening, and starting/switching to the linked task
+  - `scripts/dev.sh` starts the local SQLite database path, Alembic migrations, backend, and frontend together
   - mobile task and experiment tables render as stacked card rows instead of horizontal scrollers
   - desktop/mobile visual smoke pass for Home, Tasks, Task Detail, Journal, Experiments, and Calendar with no page-level horizontal overflow
   - Vite proxy to the backend `/api`

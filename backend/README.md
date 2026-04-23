@@ -18,6 +18,14 @@ Current scope:
 
 Useful commands:
 
+From the repository root, the easiest development startup is:
+
+```bash
+./scripts/dev.sh
+```
+
+Manual backend-only startup:
+
 ```bash
 cd /work/antonio/mydev/hpc_task_management
 mkdir -p artifacts
