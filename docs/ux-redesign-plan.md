@@ -24,9 +24,10 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - Post-redesign task workflow UI polish completed in `e7ae703`.
 - Planned-session interaction polish completed in `ba3540a`.
 - V2 Point 1 workbench interaction architecture completed in `f8eb66d`.
+- V2 Point 2 note block backend foundation completed in `154f024`.
 - Current priority is Flow Desk v2 workbench redesign, not isolated page polish.
 - Do not start broad reporting/export work until the workbench and note-linking model are usable.
-- Next implementation point is V2 Point 2. Ask the user before starting it.
+- Next implementation point is V2 Point 3. Ask the user before starting it.
 
 ## Redesign goals
 
@@ -276,6 +277,12 @@ Compatibility rule:
 - Do not remove current note APIs until the new note block APIs and UI cover existing behavior.
 - Do not assume task titles are unique; references must resolve to stable ids even if display text uses titles.
 
+Point 2 implementation note:
+
+- Daily journal note blocks are now paired with legacy `notes` rows during the transition.
+- Legacy journal entry writes backfill note blocks immediately so pre-Point-3 frontend flows still preserve the new note graph data.
+- Block updates keep the paired legacy journal row content in sync, but multi-entity backlinks should be treated as the source of truth for v2 note navigation.
+
 ### V2 Point 1. Workbench Interaction Architecture
 
 Status: completed in `f8eb66d`.
@@ -300,7 +307,7 @@ Acceptance:
 
 ### V2 Point 2. Note Block Backend Foundation
 
-Status: next, ask before starting.
+Status: completed in `154f024`.
 
 Scope:
 
@@ -318,7 +325,7 @@ Acceptance:
 
 ### V2 Point 3. Bullet Journal UI
 
-Status: planned.
+Status: next, ask before starting.
 
 Scope:
 

@@ -49,10 +49,12 @@
 - Planned-session interaction UI committed in `ba3540a`
 - Active plan is now Flow Desk v2 workbench redesign: medium Logseq-style editable note blocks, tags, backlinks, and integrated task/experiment navigation
 - V2 Point 1 workbench interaction architecture committed in `f8eb66d`
+- V2 Point 2 note block backend foundation committed in `154f024`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
   - Alembic migration for task-linked daily journal entries
+  - Alembic migration for note blocks and parsed note backlinks
   - task timing routes
   - task work-session history read route
   - task metadata update route
@@ -61,6 +63,8 @@
   - experiment registry routes with state-transition history
   - scheduled-block planning routes with move/status history
   - daily journal, task-linked journal entry, task note, and experiment note routes
+  - daily journal note block routes with block update and task/experiment/tag backlink queries
+  - legacy daily journal note writes bridged to note blocks during the v2 transition
   - API tests against temporary SQLite databases
 - Current frontend now includes:
   - redesigned `Home` focused on active task, recent journal notes, compact next-up context, and dialog-based quick actions
@@ -125,12 +129,11 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. V2 Point 2: note block backend foundation
-2. V2 Point 3: bullet journal UI
-3. V2 Point 4: tags, references, and backlinks
-4. V2 Point 5: Home workbench redesign
-5. V2 Point 6: experiment detail and comments
-6. V2 Point 7: reporting integration
+1. V2 Point 3: bullet journal UI
+2. V2 Point 4: tags, references, and backlinks
+3. V2 Point 5: Home workbench redesign
+4. V2 Point 6: experiment detail and comments
+5. V2 Point 7: reporting integration
 
 ## Commit guidance
 
