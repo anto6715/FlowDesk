@@ -2,9 +2,11 @@ import { startTransition, useEffect, useState } from "react";
 
 import {
   createJournalNoteBlock,
+  listExperiments,
   listJournalNoteBlocks,
   listTasks,
   updateNoteBlock,
+  type Experiment,
   type NoteBlock,
   type Task
 } from "../../shared/api";
@@ -34,21 +36,29 @@ function formatDateTime(iso: string | null) {
 
 interface JournalState {
   blocks: NoteBlock[];
+  experiments: Experiment[];
   tasks: Task[];
   syncedAt: Date | null;
 }
 
 const initialState: JournalState = {
   blocks: [],
+  experiments: [],
   tasks: [],
   syncedAt: null
 };
 
 interface JournalPageProps {
+  onOpenExperiment: (experimentId: string) => void;
+  onOpenTag: (tagName: string) => void;
   onOpenTask: (taskId: string) => void;
 }
 
-export function JournalPage({ onOpenTask }: JournalPageProps) {
+export function JournalPage({
+  onOpenExperiment,
+  onOpenTag,
+  onOpenTask
+}: JournalPageProps) {
   const [state, setState] = useState<JournalState>(initialState);
   const [journalDay, setJournalDay] = useState(localDateKey());
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
@@ -58,10 +68,15 @@ export function JournalPage({ onOpenTask }: JournalPageProps) {
   async function loadJournalBlocks(day: string) {
     setIsLoading(true);
     try {
-      const [blocks, tasks] = await Promise.all([listJournalNoteBlocks(day), listTasks()]);
+      const [blocks, experiments, tasks] = await Promise.all([
+        listJournalNoteBlocks(day),
+        listExperiments(),
+        listTasks()
+      ]);
       startTransition(() => {
         setState({
           blocks,
+          experiments,
           tasks,
           syncedAt: new Date()
         });
@@ -106,6 +121,9 @@ export function JournalPage({ onOpenTask }: JournalPageProps) {
   }
 
   const taskLookup = new Map(state.tasks.map((task) => [task.id, task]));
+  const experimentLookup = new Map(
+    state.experiments.map((experiment) => [experiment.id, experiment])
+  );
   const openTasks = state.tasks.filter((task) => !["done", "archived"].includes(task.status));
   const editingBlock =
     editingBlockId !== null
@@ -149,6 +167,7 @@ export function JournalPage({ onOpenTask }: JournalPageProps) {
             </div>
           </div>
           <BulletNoteEditor
+            experiments={state.experiments}
             onError={setError}
             onSubmit={handleCreateBullet}
             placeholder="Capture the next bullet, markdown and #tags included."
@@ -173,9 +192,10 @@ export function JournalPage({ onOpenTask }: JournalPageProps) {
                   <li className="bullet-note bullet-note--editing" key={block.id}>
                     <BulletNoteEditor
                       autoFocus
-                      compact
-                      initialContent={block.content_markdown}
-                      initialTaskId={primaryTaskIdForNoteBlock(block)}
+                    compact
+                    experiments={state.experiments}
+                    initialContent={block.content_markdown}
+                    initialTaskId={primaryTaskIdForNoteBlock(block)}
                       onCancel={() => setEditingBlockId(null)}
                       onError={setError}
                       onSubmit={(input) => handleUpdateBullet(block.id, input)}
@@ -187,8 +207,11 @@ export function JournalPage({ onOpenTask }: JournalPageProps) {
                 ) : (
                   <BulletNoteCard
                     block={block}
+                    experimentLookup={experimentLookup}
                     key={block.id}
                     onEdit={(nextBlock) => setEditingBlockId(nextBlock.id)}
+                    onOpenExperiment={onOpenExperiment}
+                    onOpenTag={onOpenTag}
                     onOpenTask={onOpenTask}
                     taskLookup={taskLookup}
                   />

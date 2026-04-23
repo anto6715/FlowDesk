@@ -3,6 +3,7 @@ import { startTransition, type FormEvent, useEffect, useState } from "react";
 import {
   addTaskNote,
   listGitHubReferences,
+  listTaskBacklinks,
   listMacroActivities,
   listExperiments,
   listScheduledBlocks,
@@ -16,6 +17,7 @@ import {
   type GitHubReference,
   type MacroActivity,
   type Note,
+  type NoteBlock,
   type ScheduledBlock,
   type Task,
   type TaskPriority,
@@ -28,12 +30,15 @@ import {
   formatTaskStatus,
   plannedSessionCountLabel
 } from "../../shared/labels";
+import { BulletNoteCard } from "../../shared/notes";
 import { PlannedSessionDialog } from "../../shared/plannedSessions";
 
 interface TaskDetailPageProps {
   taskId: string;
   onBack: () => void;
   onOpenExperiment: (experimentId: string) => void;
+  onOpenTag: (tagName: string) => void;
+  onOpenTask: (taskId: string) => void;
 }
 
 interface TaskDetailState {
@@ -47,6 +52,7 @@ interface TaskDetailState {
   experiments: Experiment[];
   scheduledBlocks: ScheduledBlock[];
   notes: Note[];
+  backlinks: NoteBlock[];
   syncedAt: Date | null;
 }
 
@@ -61,6 +67,7 @@ const initialState: TaskDetailState = {
   experiments: [],
   scheduledBlocks: [],
   notes: [],
+  backlinks: [],
   syncedAt: null
 };
 
@@ -157,7 +164,13 @@ function formatTimeRange(startsAt: string, endsAt: string) {
   return `${formatter.format(new Date(startsAt))} - ${formatter.format(new Date(endsAt))}`;
 }
 
-export function TaskDetailPage({ taskId, onBack, onOpenExperiment }: TaskDetailPageProps) {
+export function TaskDetailPage({
+  taskId,
+  onBack,
+  onOpenExperiment,
+  onOpenTag,
+  onOpenTask
+}: TaskDetailPageProps) {
   const [state, setState] = useState<TaskDetailState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingMetadata, setIsSavingMetadata] = useState(false);
@@ -180,7 +193,8 @@ export function TaskDetailPage({ taskId, onBack, onOpenExperiment }: TaskDetailP
         workSessions,
         experiments,
         scheduledBlocks,
-        notes
+        notes,
+        backlinks
       ] = await Promise.all([
         listTasks(),
         listMacroActivities(),
@@ -188,7 +202,8 @@ export function TaskDetailPage({ taskId, onBack, onOpenExperiment }: TaskDetailP
         listTaskWorkSessions(taskId),
         listExperiments({ task_id: taskId }),
         listScheduledBlocks({ task_id: taskId }),
-        listTaskNotes(taskId)
+        listTaskNotes(taskId),
+        listTaskBacklinks(taskId)
       ]);
       const task = tasks.find((item) => item.id === taskId) ?? null;
       const macroActivity =
@@ -212,6 +227,7 @@ export function TaskDetailPage({ taskId, onBack, onOpenExperiment }: TaskDetailP
           experiments,
           scheduledBlocks,
           notes,
+          backlinks,
           syncedAt: new Date()
         });
         setMetadataForm(buildMetadataForm(task, githubReference));
@@ -356,6 +372,8 @@ export function TaskDetailPage({ taskId, onBack, onOpenExperiment }: TaskDetailP
       ? state.githubReferences.find((reference) => reference.id === metadataForm.githubReferenceId) ??
         null
       : null;
+  const taskLookup = new Map(state.tasks.map((item) => [item.id, item]));
+  const experimentLookup = new Map(state.experiments.map((experiment) => [experiment.id, experiment]));
   const selectedScheduledBlock =
     selectedScheduledBlockId !== null
       ? state.scheduledBlocks.find((block) => block.id === selectedScheduledBlockId) ?? null
@@ -454,6 +472,32 @@ export function TaskDetailPage({ taskId, onBack, onOpenExperiment }: TaskDetailP
                   </ol>
                 ) : (
                   <p className="empty-state">No task notes yet.</p>
+                )}
+              </article>
+
+              <article className="panel panel--stack">
+                <div className="panel-header panel-header--compact">
+                  <div>
+                    <p className="section-kicker">Backlinks</p>
+                    <h2>{state.backlinks.length} linked journal bullets</h2>
+                  </div>
+                </div>
+                {state.backlinks.length > 0 ? (
+                  <ol className="journal-list journal-list--long">
+                    {state.backlinks.map((block) => (
+                      <BulletNoteCard
+                        block={block}
+                        experimentLookup={experimentLookup}
+                        key={block.id}
+                        onOpenExperiment={onOpenExperiment}
+                        onOpenTag={onOpenTag}
+                        onOpenTask={onOpenTask}
+                        taskLookup={taskLookup}
+                      />
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="empty-state">No journal bullets link to this task yet.</p>
                 )}
               </article>
             </div>

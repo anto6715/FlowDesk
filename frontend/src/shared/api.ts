@@ -509,6 +509,18 @@ export async function updateNoteBlock(
   });
 }
 
+export async function listTaskBacklinks(taskId: string): Promise<NoteBlock[]> {
+  return request<NoteBlock[]>(`/tasks/${taskId}/backlinks`);
+}
+
+export async function listExperimentBacklinks(experimentId: string): Promise<NoteBlock[]> {
+  return request<NoteBlock[]>(`/experiments/${experimentId}/backlinks`);
+}
+
+export async function listTagBacklinks(tagName: string): Promise<NoteBlock[]> {
+  return request<NoteBlock[]>(`/tags/${encodeURIComponent(tagName)}/backlinks`);
+}
+
 export async function listTaskNotes(taskId: string): Promise<Note[]> {
   return request<Note[]>(`/tasks/${taskId}/notes`);
 }

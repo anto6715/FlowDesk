@@ -1,6 +1,7 @@
 import {
   Fragment,
   useEffect,
+  useRef,
   useState,
   type FormEvent,
   type KeyboardEvent,
@@ -8,11 +9,11 @@ import {
 } from "react";
 
 import {
+  type Experiment,
   type NoteBlock,
   type NoteBlockReferenceInput,
   type Task
 } from "./api";
-import { TaskSelect } from "./forms";
 
 const UUID_PATTERN =
   "[0-9a-fA-F]{8}-" +
@@ -44,6 +45,42 @@ function wasEdited(block: NoteBlock) {
 
 function shortenId(id: string) {
   return id.slice(0, 8);
+}
+
+function formatTaskReferenceLabel(task: Task) {
+  return `${task.title} • ${shortenId(task.id)}`;
+}
+
+function formatExperimentReferenceLabel(experiment: Experiment) {
+  return `${experiment.title} • ${shortenId(experiment.id)}`;
+}
+
+function formatTaskFallbackLabel(taskId: string) {
+  return `Task ${shortenId(taskId)}`;
+}
+
+function formatExperimentFallbackLabel(experimentId: string) {
+  return `Experiment ${shortenId(experimentId)}`;
+}
+
+function sanitizeReferenceLabel(label: string) {
+  const sanitized = label.replace(/\|/g, "/").replace(/\]/g, ")").trim();
+  return sanitized.length > 0 ? sanitized : "Untitled";
+}
+
+function resolveTaskReferenceLabel(taskId: string, taskLookup: Map<string, Task>) {
+  const task = taskLookup.get(taskId);
+  return task ? formatTaskReferenceLabel(task) : formatTaskFallbackLabel(taskId);
+}
+
+function resolveExperimentReferenceLabel(
+  experimentId: string,
+  experimentLookup: Map<string, Experiment>
+) {
+  const experiment = experimentLookup.get(experimentId);
+  return experiment
+    ? formatExperimentReferenceLabel(experiment)
+    : formatExperimentFallbackLabel(experimentId);
 }
 
 function taskLinkIds(block: NoteBlock) {
@@ -80,7 +117,9 @@ function renderInlineMarkdown(
   text: string,
   keyPrefix: string,
   taskLookup: Map<string, Task>,
-  onOpenTask?: (taskId: string) => void
+  experimentLookup: Map<string, Experiment>,
+  onOpenTask?: (taskId: string) => void,
+  onOpenExperiment?: (experimentId: string) => void
 ) {
   const nodes: ReactNode[] = [];
   let cursor = 0;
@@ -104,8 +143,9 @@ function renderInlineMarkdown(
       const explicitLabel = match[3];
 
       if (entityType === "task") {
-        const taskTitle = taskLookup.get(entityId)?.title;
-        const label = explicitLabel ?? taskTitle ?? `Task ${shortenId(entityId)}`;
+        const task = taskLookup.get(entityId);
+        const label =
+          explicitLabel ?? (task ? formatTaskReferenceLabel(task) : formatTaskFallbackLabel(entityId));
 
         nodes.push(
           onOpenTask ? (
@@ -124,10 +164,31 @@ function renderInlineMarkdown(
           )
         );
       } else {
+        const experiment = experimentLookup.get(entityId);
+        const label =
+          explicitLabel ??
+          (experiment
+            ? formatExperimentReferenceLabel(experiment)
+            : formatExperimentFallbackLabel(entityId));
+
         nodes.push(
-          <span className="markdown-ref markdown-ref--experiment" key={`${keyPrefix}-experiment-${entityId}-${matchIndex}`}>
-            {explicitLabel ?? `Experiment ${shortenId(entityId)}`}
-          </span>
+          onOpenExperiment ? (
+            <button
+              className="markdown-ref markdown-ref--button markdown-ref--experiment"
+              key={`${keyPrefix}-experiment-${entityId}-${matchIndex}`}
+              onClick={() => onOpenExperiment(entityId)}
+              type="button"
+            >
+              {label}
+            </button>
+          ) : (
+            <span
+              className="markdown-ref markdown-ref--experiment"
+              key={`${keyPrefix}-experiment-${entityId}-${matchIndex}`}
+            >
+              {label}
+            </span>
+          )
         );
       }
     } else if (match[4] && match[5]) {
@@ -173,7 +234,9 @@ function renderInlineMarkdown(
 function renderMarkdownBlocks(
   content: string,
   taskLookup: Map<string, Task>,
-  onOpenTask?: (taskId: string) => void
+  experimentLookup: Map<string, Experiment>,
+  onOpenTask?: (taskId: string) => void,
+  onOpenExperiment?: (experimentId: string) => void
 ) {
   const lines = content.replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
@@ -194,7 +257,9 @@ function renderMarkdownBlocks(
         headingMatch[2],
         `heading-${index}`,
         taskLookup,
-        onOpenTask
+        experimentLookup,
+        onOpenTask,
+        onOpenExperiment
       );
 
       if (level === 1) {
@@ -228,7 +293,13 @@ function renderMarkdownBlocks(
       }
       blocks.push(
         <blockquote className="markdown-quote" key={`quote-${index}`}>
-          {renderMarkdownBlocks(quoteLines.join("\n"), taskLookup, onOpenTask)}
+          {renderMarkdownBlocks(
+            quoteLines.join("\n"),
+            taskLookup,
+            experimentLookup,
+            onOpenTask,
+            onOpenExperiment
+          )}
         </blockquote>
       );
       continue;
@@ -244,7 +315,14 @@ function renderMarkdownBlocks(
         <ul className="markdown-list" key={`ul-${index}`}>
           {items.map((item, itemIndex) => (
             <li key={`ul-${index}-${itemIndex}`}>
-              {renderInlineMarkdown(item, `ul-${index}-${itemIndex}`, taskLookup, onOpenTask)}
+              {renderInlineMarkdown(
+                item,
+                `ul-${index}-${itemIndex}`,
+                taskLookup,
+                experimentLookup,
+                onOpenTask,
+                onOpenExperiment
+              )}
             </li>
           ))}
         </ul>
@@ -262,7 +340,14 @@ function renderMarkdownBlocks(
         <ol className="markdown-list markdown-list--ordered" key={`ol-${index}`}>
           {items.map((item, itemIndex) => (
             <li key={`ol-${index}-${itemIndex}`}>
-              {renderInlineMarkdown(item, `ol-${index}-${itemIndex}`, taskLookup, onOpenTask)}
+              {renderInlineMarkdown(
+                item,
+                `ol-${index}-${itemIndex}`,
+                taskLookup,
+                experimentLookup,
+                onOpenTask,
+                onOpenExperiment
+              )}
             </li>
           ))}
         </ol>
@@ -285,7 +370,14 @@ function renderMarkdownBlocks(
 
     blocks.push(
       <p className="markdown-paragraph" key={`paragraph-${index}`}>
-        {renderInlineMarkdown(paragraphLines.join("\n"), `paragraph-${index}`, taskLookup, onOpenTask)}
+        {renderInlineMarkdown(
+          paragraphLines.join("\n"),
+          `paragraph-${index}`,
+          taskLookup,
+          experimentLookup,
+          onOpenTask,
+          onOpenExperiment
+        )}
       </p>
     );
   }
@@ -301,6 +393,7 @@ interface BulletNoteEditorProps {
   autoFocus?: boolean;
   cancelLabel?: string;
   compact?: boolean;
+  experiments?: Experiment[];
   initialContent?: string;
   initialTaskId?: string;
   onCancel?: () => void;
@@ -316,6 +409,7 @@ export function BulletNoteEditor({
   autoFocus = false,
   cancelLabel = "Cancel",
   compact = false,
+  experiments = [],
   initialContent = "",
   initialTaskId = "",
   onCancel,
@@ -328,7 +422,10 @@ export function BulletNoteEditor({
 }: BulletNoteEditorProps) {
   const [contentMarkdown, setContentMarkdown] = useState(initialContent);
   const [taskId, setTaskId] = useState(initialTaskId);
+  const [referenceTaskId, setReferenceTaskId] = useState(initialTaskId);
+  const [referenceExperimentId, setReferenceExperimentId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     setContentMarkdown(initialContent);
@@ -336,7 +433,28 @@ export function BulletNoteEditor({
 
   useEffect(() => {
     setTaskId(initialTaskId);
+    setReferenceTaskId(initialTaskId);
   }, [initialTaskId]);
+
+  useEffect(() => {
+    if (referenceTaskId.length === 0) {
+      return;
+    }
+
+    if (!tasks.some((task) => task.id === referenceTaskId)) {
+      setReferenceTaskId(tasks[0]?.id ?? "");
+    }
+  }, [referenceTaskId, tasks]);
+
+  useEffect(() => {
+    if (referenceExperimentId.length === 0) {
+      return;
+    }
+
+    if (!experiments.some((experiment) => experiment.id === referenceExperimentId)) {
+      setReferenceExperimentId(experiments[0]?.id ?? "");
+    }
+  }, [experiments, referenceExperimentId]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -376,18 +494,70 @@ export function BulletNoteEditor({
     }
   }
 
+  function insertReferenceToken(token: string) {
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? contentMarkdown.length;
+    const end = textarea?.selectionEnd ?? contentMarkdown.length;
+
+    setContentMarkdown((current) => {
+      const before = current.slice(0, start);
+      const after = current.slice(end);
+      const prefix = before.length > 0 && !/\s$/.test(before) ? " " : "";
+      const suffix = after.length > 0 && !/^\s/.test(after) ? " " : "";
+      const inserted = `${prefix}${token}${suffix}`;
+
+      requestAnimationFrame(() => {
+        const nextCursor = before.length + inserted.length;
+        textareaRef.current?.focus();
+        textareaRef.current?.setSelectionRange(nextCursor, nextCursor);
+      });
+
+      return `${before}${inserted}${after}`;
+    });
+  }
+
+  function handleInsertTaskReference() {
+    if (referenceTaskId.length === 0) {
+      return;
+    }
+
+    const task = tasks.find((item) => item.id === referenceTaskId);
+    const label = sanitizeReferenceLabel(
+      task ? formatTaskReferenceLabel(task) : formatTaskFallbackLabel(referenceTaskId)
+    );
+    insertReferenceToken(`[[task:${referenceTaskId}|${label}]]`);
+  }
+
+  function handleInsertExperimentReference() {
+    if (referenceExperimentId.length === 0) {
+      return;
+    }
+
+    const experiment = experiments.find((item) => item.id === referenceExperimentId);
+    const label = sanitizeReferenceLabel(
+      experiment
+        ? formatExperimentReferenceLabel(experiment)
+        : formatExperimentFallbackLabel(referenceExperimentId)
+    );
+    insertReferenceToken(`[[experiment:${referenceExperimentId}|${label}]]`);
+  }
+
   return (
     <form
       className={compact ? "compact-form compact-form--flush note-editor note-editor--compact" : "compact-form compact-form--flush note-editor"}
       onSubmit={(event) => void handleSubmit(event)}
     >
-      <TaskSelect
-        includeUnassigned
-        label="Linked task"
-        onChange={setTaskId}
-        tasks={tasks}
-        value={taskId}
-      />
+      <label>
+        <span>Linked task</span>
+        <select onChange={(event) => setTaskId(event.target.value)} value={taskId}>
+          <option value="">No linked task</option>
+          {tasks.map((task) => (
+            <option key={task.id} value={task.id}>
+              {formatTaskReferenceLabel(task)}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="note-editor__body">
         <span>Bullet</span>
         <textarea
@@ -395,10 +565,60 @@ export function BulletNoteEditor({
           onChange={(event) => setContentMarkdown(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
+          ref={textareaRef}
           rows={compact ? 5 : 8}
           value={contentMarkdown}
         />
       </label>
+      <details className="note-editor-tools">
+        <summary>Insert reference</summary>
+        <div className="note-editor-tools__grid">
+          <label>
+            <span>Task ref</span>
+            <select
+              onChange={(event) => setReferenceTaskId(event.target.value)}
+              value={referenceTaskId}
+            >
+              <option value="">Pick task</option>
+              {tasks.map((task) => (
+                <option key={task.id} value={task.id}>
+                  {formatTaskReferenceLabel(task)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="button button--ghost button--small"
+            disabled={referenceTaskId.length === 0}
+            onClick={handleInsertTaskReference}
+            type="button"
+          >
+            Insert task
+          </button>
+          <label>
+            <span>Experiment ref</span>
+            <select
+              onChange={(event) => setReferenceExperimentId(event.target.value)}
+              value={referenceExperimentId}
+            >
+              <option value="">Pick experiment</option>
+              {experiments.map((experiment) => (
+                <option key={experiment.id} value={experiment.id}>
+                  {formatExperimentReferenceLabel(experiment)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="button button--ghost button--small"
+            disabled={referenceExperimentId.length === 0}
+            onClick={handleInsertExperimentReference}
+            type="button"
+          >
+            Insert experiment
+          </button>
+        </div>
+      </details>
       <div className="note-editor__hint">
         Markdown is supported. Use <code>#tags</code>. Press Ctrl/Cmd+Enter to save.
       </div>
@@ -418,14 +638,20 @@ export function BulletNoteEditor({
 
 interface BulletNoteCardProps {
   block: NoteBlock;
+  experimentLookup?: Map<string, Experiment>;
   onEdit?: (block: NoteBlock) => void;
+  onOpenExperiment?: (experimentId: string) => void;
+  onOpenTag?: (tagName: string) => void;
   onOpenTask?: (taskId: string) => void;
   taskLookup: Map<string, Task>;
 }
 
 export function BulletNoteCard({
   block,
+  experimentLookup = new Map<string, Experiment>(),
   onEdit,
+  onOpenExperiment,
+  onOpenTag,
   onOpenTask,
   taskLookup
 }: BulletNoteCardProps) {
@@ -463,32 +689,57 @@ export function BulletNoteCard({
                 onClick={() => onOpenTask(taskId)}
                 type="button"
               >
-                {taskLookup.get(taskId)?.title ?? `Task ${shortenId(taskId)}`}
+                {resolveTaskReferenceLabel(taskId, taskLookup)}
               </button>
             ) : (
               <span className="note-link-chip" key={`task-${taskId}`}>
-                {taskLookup.get(taskId)?.title ?? `Task ${shortenId(taskId)}`}
+                {resolveTaskReferenceLabel(taskId, taskLookup)}
               </span>
             )
           )}
-          {linkedExperimentIds.map((experimentId) => (
-            <span
-              className="note-link-chip note-link-chip--experiment"
-              key={`experiment-${experimentId}`}
-            >
-              Experiment {shortenId(experimentId)}
-            </span>
-          ))}
-          {linkedTags.map((tagName) => (
-            <span className="note-link-chip note-link-chip--tag" key={`tag-${tagName}`}>
-              #{tagName}
-            </span>
-          ))}
+          {linkedExperimentIds.map((experimentId) =>
+            onOpenExperiment ? (
+              <button
+                className="note-link-chip note-link-chip--button note-link-chip--experiment"
+                key={`experiment-${experimentId}`}
+                onClick={() => onOpenExperiment(experimentId)}
+                type="button"
+              >
+                {resolveExperimentReferenceLabel(experimentId, experimentLookup)}
+              </button>
+            ) : (
+              <span className="note-link-chip note-link-chip--experiment" key={`experiment-${experimentId}`}>
+                {resolveExperimentReferenceLabel(experimentId, experimentLookup)}
+              </span>
+            )
+          )}
+          {linkedTags.map((tagName) =>
+            onOpenTag ? (
+              <button
+                className="note-link-chip note-link-chip--button note-link-chip--tag"
+                key={`tag-${tagName}`}
+                onClick={() => onOpenTag(tagName)}
+                type="button"
+              >
+                #{tagName}
+              </button>
+            ) : (
+              <span className="note-link-chip note-link-chip--tag" key={`tag-${tagName}`}>
+                #{tagName}
+              </span>
+            )
+          )}
         </div>
       ) : null}
 
       <div className="markdown-content">
-        {renderMarkdownBlocks(block.content_markdown, taskLookup, onOpenTask)}
+        {renderMarkdownBlocks(
+          block.content_markdown,
+          taskLookup,
+          experimentLookup,
+          onOpenTask,
+          onOpenExperiment
+        )}
       </div>
     </li>
   );

@@ -5,6 +5,7 @@ import { ExperimentDetailPage } from "../features/experiments/ExperimentDetailPa
 import { ExperimentsPage } from "../features/experiments/ExperimentsPage";
 import { HomePage } from "../features/home/HomePage";
 import { JournalPage } from "../features/journal/JournalPage";
+import { TagDetailPage } from "../features/journal/TagDetailPage";
 import { GlobalTasksPage } from "../features/tasks/GlobalTasksPage";
 import { TaskDetailPage } from "../features/tasks/TaskDetailPage";
 
@@ -15,6 +16,7 @@ type AppView =
   | "experiments"
   | "experiment-detail"
   | "journal"
+  | "tag-detail"
   | "calendar";
 
 const appViews: Array<{ value: AppView; label: string }> = [
@@ -29,7 +31,9 @@ export function App() {
   const [activeView, setActiveView] = useState<AppView>("today");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedExperimentId, setSelectedExperimentId] = useState<string | null>(null);
+  const [selectedTagName, setSelectedTagName] = useState<string | null>(null);
   const [experimentBackView, setExperimentBackView] = useState<AppView>("experiments");
+  const [tagBackView, setTagBackView] = useState<AppView>("journal");
 
   function openTaskDetail(taskId: string) {
     setSelectedTaskId(taskId);
@@ -40,6 +44,14 @@ export function App() {
     setExperimentBackView(activeView === "experiment-detail" ? "experiments" : activeView);
     setSelectedExperimentId(experimentId);
     setActiveView("experiment-detail");
+  }
+
+  function openTagDetail(tagName: string) {
+    if (activeView !== "tag-detail") {
+      setTagBackView(activeView);
+    }
+    setSelectedTagName(tagName);
+    setActiveView("tag-detail");
   }
 
   return (
@@ -53,7 +65,8 @@ export function App() {
               const isActive =
                 activeView === view.value ||
                 (view.value === "tasks" && activeView === "task-detail") ||
-                (view.value === "experiments" && activeView === "experiment-detail");
+                (view.value === "experiments" && activeView === "experiment-detail") ||
+                (view.value === "journal" && activeView === "tag-detail");
 
               return (
                 <button
@@ -70,7 +83,11 @@ export function App() {
       </aside>
       <div className="app-main">
         {activeView === "today" ? (
-          <HomePage onOpenExperiment={openExperimentDetail} onOpenTask={openTaskDetail} />
+          <HomePage
+            onOpenExperiment={openExperimentDetail}
+            onOpenTag={openTagDetail}
+            onOpenTask={openTaskDetail}
+          />
         ) : null}
         {activeView === "tasks" ? <GlobalTasksPage onOpenTask={openTaskDetail} /> : null}
         {activeView === "task-detail" && selectedTaskId !== null ? (
@@ -79,6 +96,8 @@ export function App() {
               setActiveView("tasks");
             }}
             onOpenExperiment={openExperimentDetail}
+            onOpenTag={openTagDetail}
+            onOpenTask={openTaskDetail}
             taskId={selectedTaskId}
           />
         ) : null}
@@ -94,10 +113,29 @@ export function App() {
             onBack={() => {
               setActiveView(experimentBackView);
             }}
+            onOpenExperiment={openExperimentDetail}
+            onOpenTag={openTagDetail}
             onOpenTask={openTaskDetail}
           />
         ) : null}
-        {activeView === "journal" ? <JournalPage onOpenTask={openTaskDetail} /> : null}
+        {activeView === "journal" ? (
+          <JournalPage
+            onOpenExperiment={openExperimentDetail}
+            onOpenTag={openTagDetail}
+            onOpenTask={openTaskDetail}
+          />
+        ) : null}
+        {activeView === "tag-detail" && selectedTagName !== null ? (
+          <TagDetailPage
+            onBack={() => {
+              setActiveView(tagBackView);
+            }}
+            onOpenExperiment={openExperimentDetail}
+            onOpenTag={openTagDetail}
+            onOpenTask={openTaskDetail}
+            tagName={selectedTagName}
+          />
+        ) : null}
         {activeView === "calendar" ? <CalendarPage onOpenTask={openTaskDetail} /> : null}
       </div>
     </div>

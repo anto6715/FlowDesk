@@ -58,8 +58,7 @@ interface DashboardState {
   githubReferences: GitHubReference[];
   activeTask: Task | null;
   activeSessionStartedAt: string | null;
-  runningExperiments: Experiment[];
-  stalledExperiments: Experiment[];
+  experiments: Experiment[];
   scheduledBlocks: ScheduledBlock[];
   journalBlocks: NoteBlock[];
   journalDay: string;
@@ -72,8 +71,7 @@ const initialState: DashboardState = {
   githubReferences: [],
   activeTask: null,
   activeSessionStartedAt: null,
-  runningExperiments: [],
-  stalledExperiments: [],
+  experiments: [],
   scheduledBlocks: [],
   journalBlocks: [],
   journalDay: localDateKey(),
@@ -150,10 +148,11 @@ type HomeQuickAction =
 
 interface HomePageProps {
   onOpenExperiment: (experimentId: string) => void;
+  onOpenTag: (tagName: string) => void;
   onOpenTask: (taskId: string) => void;
 }
 
-export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
+export function HomePage({ onOpenExperiment, onOpenTag, onOpenTask }: HomePageProps) {
   const [dashboard, setDashboard] = useState<DashboardState>(initialState);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -178,8 +177,7 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
         macroActivities,
         githubReferences,
         active,
-        runningExperiments,
-        stalledExperiments,
+        experiments,
         scheduledBlocks,
         journalBlocks
       ] = await Promise.all([
@@ -187,8 +185,7 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
         listMacroActivities(),
         listGitHubReferences(),
         getActiveTask(),
-        listExperiments({ status: "running" }),
-        listExperiments({ status: "stalled" }),
+        listExperiments(),
         listScheduledBlocks({
           status: "planned",
           ends_after: dayBounds.startsAt,
@@ -203,8 +200,7 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
           githubReferences,
           activeTask: active.task,
           activeSessionStartedAt: active.work_session?.started_at ?? null,
-          runningExperiments,
-          stalledExperiments,
+          experiments,
           scheduledBlocks,
           journalBlocks,
           journalDay,
@@ -323,6 +319,9 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
   const githubReferenceLookup = new Map(
     dashboard.githubReferences.map((githubReference) => [githubReference.id, githubReference])
   );
+  const experimentLookup = new Map(
+    dashboard.experiments.map((experiment) => [experiment.id, experiment])
+  );
   const usedGithubReferenceIds = new Set(
     dashboard.tasks.flatMap((task) => (task.github_reference_id ? [task.github_reference_id] : []))
   );
@@ -342,10 +341,13 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
     selectedScheduledBlockId !== null
       ? dashboard.scheduledBlocks.find((block) => block.id === selectedScheduledBlockId) ?? null
       : null;
-  const attentionExperiments = [
-    ...dashboard.stalledExperiments,
-    ...dashboard.runningExperiments
-  ].slice(0, 3);
+  const runningExperiments = dashboard.experiments.filter(
+    (experiment) => experiment.status === "running"
+  );
+  const stalledExperiments = dashboard.experiments.filter(
+    (experiment) => experiment.status === "stalled"
+  );
+  const attentionExperiments = [...stalledExperiments, ...runningExperiments].slice(0, 3);
 
   return (
     <main className="page-shell page-shell--home">
@@ -554,8 +556,11 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
               {latestJournalBlocks.map((block) => (
                 <BulletNoteCard
                   block={block}
+                  experimentLookup={experimentLookup}
                   key={block.id}
                   onEdit={(nextBlock) => setQuickAction({ kind: "note-edit", block: nextBlock })}
+                  onOpenExperiment={onOpenExperiment}
+                  onOpenTag={onOpenTag}
                   onOpenTask={onOpenTask}
                   taskLookup={taskLookup}
                 />
@@ -641,7 +646,7 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
             <section>
               <div className="home-mini-header">
                 <h3>Experiments</h3>
-                <span>{dashboard.runningExperiments.length + dashboard.stalledExperiments.length}</span>
+                <span>{runningExperiments.length + stalledExperiments.length}</span>
               </div>
               {attentionExperiments.length > 0 ? (
                 <ul className="entity-list">
@@ -764,6 +769,7 @@ export function HomePage({ onOpenExperiment, onOpenTask }: HomePageProps) {
             <BulletNoteEditor
               autoFocus
               compact
+              experiments={dashboard.experiments}
               initialContent={
                 quickAction.kind === "note-edit" ? quickAction.block.content_markdown : ""
               }

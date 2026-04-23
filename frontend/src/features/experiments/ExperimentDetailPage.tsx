@@ -3,30 +3,39 @@ import { startTransition, type FormEvent, useEffect, useState } from "react";
 import {
   addExperimentNote,
   getExperiment,
+  listExperimentBacklinks,
   listExperimentNotes,
   listTasks,
   type Experiment,
   type Note,
+  type NoteBlock,
   type Task
 } from "../../shared/api";
+import { BulletNoteCard } from "../../shared/notes";
 
 interface ExperimentDetailPageProps {
   experimentId: string;
   onBack: () => void;
+  onOpenExperiment: (experimentId: string) => void;
+  onOpenTag: (tagName: string) => void;
   onOpenTask: (taskId: string) => void;
 }
 
 interface ExperimentDetailState {
   experiment: Experiment | null;
   linkedTask: Task | null;
+  tasks: Task[];
   notes: Note[];
+  backlinks: NoteBlock[];
   syncedAt: Date | null;
 }
 
 const initialState: ExperimentDetailState = {
   experiment: null,
   linkedTask: null,
+  tasks: [],
   notes: [],
+  backlinks: [],
   syncedAt: null
 };
 
@@ -62,6 +71,8 @@ function formatDuration(experiment: Experiment) {
 export function ExperimentDetailPage({
   experimentId,
   onBack,
+  onOpenExperiment,
+  onOpenTag,
   onOpenTask
 }: ExperimentDetailPageProps) {
   const [state, setState] = useState<ExperimentDetailState>(initialState);
@@ -73,16 +84,19 @@ export function ExperimentDetailPage({
   async function loadExperimentDetail() {
     setIsLoading(true);
     try {
-      const [experiment, tasks, notes] = await Promise.all([
+      const [experiment, tasks, notes, backlinks] = await Promise.all([
         getExperiment(experimentId),
         listTasks(),
-        listExperimentNotes(experimentId)
+        listExperimentNotes(experimentId),
+        listExperimentBacklinks(experimentId)
       ]);
       startTransition(() => {
         setState({
           experiment,
           linkedTask: tasks.find((task) => task.id === experiment.task_id) ?? null,
+          tasks,
           notes,
+          backlinks,
           syncedAt: new Date()
         });
         setError(null);
@@ -118,6 +132,10 @@ export function ExperimentDetailPage({
   }
 
   const experiment = state.experiment;
+  const taskLookup = new Map(state.tasks.map((task) => [task.id, task]));
+  const experimentLookup = new Map(
+    (state.experiment ? [state.experiment] : []).map((item) => [item.id, item])
+  );
 
   return (
     <main className="page-shell">
@@ -212,6 +230,32 @@ export function ExperimentDetailPage({
                 </ol>
               ) : (
                 <p className="empty-state">No experiment notes yet.</p>
+              )}
+            </article>
+
+            <article className="panel panel--stack">
+              <div className="panel-header panel-header--compact">
+                <div>
+                  <p className="section-kicker">Backlinks</p>
+                  <h2>{state.backlinks.length} linked journal bullets</h2>
+                </div>
+              </div>
+              {state.backlinks.length > 0 ? (
+                <ol className="journal-list journal-list--long">
+                  {state.backlinks.map((block) => (
+                    <BulletNoteCard
+                      block={block}
+                      experimentLookup={experimentLookup}
+                      key={block.id}
+                      onOpenExperiment={onOpenExperiment}
+                      onOpenTag={onOpenTag}
+                      onOpenTask={onOpenTask}
+                      taskLookup={taskLookup}
+                    />
+                  ))}
+                </ol>
+              ) : (
+                <p className="empty-state">No journal bullets link to this experiment yet.</p>
               )}
             </article>
           </div>
