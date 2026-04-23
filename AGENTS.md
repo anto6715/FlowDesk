@@ -47,6 +47,7 @@
 - UX redesign Point 6 visual and mobile polish committed in `d9336fe`
 - Post-redesign task workflow UI polish committed in `e7ae703`
 - Planned-session interaction UI committed in `ba3540a`
+- Active plan is now Flow Desk v2 workbench redesign: medium Logseq-style editable note blocks, tags, backlinks, and integrated task/experiment navigation
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
@@ -115,16 +116,19 @@ When resuming a future session:
 2. Read `docs/design-checkpoint.md`
 3. Read `docs/ux-redesign-plan.md`
 4. Check `git status --short`
-5. Confirm whether the user wants feedback-driven UI polish or the next backend/product slice
-6. If continuing UI polish, start with experiment detail/comments, then Journal note editing and task-reference autocomplete
-7. Default later product slice is reporting, backup/export/import, experiment detail, then URL-backed routing
+5. Continue from the Flow Desk v2 workbench plan in `docs/ux-redesign-plan.md`
+6. Ask the user before starting each V2 point
+7. Do not resume broad reporting/export work until the v2 workbench and note-linking foundation are usable
 
 ## Near-term implementation order
 
-1. Continue user-feedback UI polish before adding broad new features
-2. Next UI slice: experiment detail page with instruction/code-friendly visualization and experiment-scoped notes/comments
-3. Then: Journal note editing plus smarter task linking/autocomplete
-4. Resume reporting, backup/export/import, and URL-backed routing after the UI workflow is stable enough for user testing
+1. V2 Point 1: workbench interaction architecture
+2. V2 Point 2: note block backend foundation
+3. V2 Point 3: bullet journal UI
+4. V2 Point 4: tags, references, and backlinks
+5. V2 Point 5: Home workbench redesign
+6. V2 Point 6: experiment detail and comments
+7. V2 Point 7: reporting integration
 
 ## Commit guidance
 

@@ -23,8 +23,9 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - UX redesign pass is complete.
 - Post-redesign task workflow UI polish completed in `e7ae703`.
 - Planned-session interaction polish completed in `ba3540a`.
-- Current priority is continued UI polish before broad new backend/product features.
-- Next UI slice should start with experiment detail/comments, then Journal note editing and smarter task linking.
+- Current priority is Flow Desk v2 workbench redesign, not isolated page polish.
+- Do not start broad reporting/export work until the workbench and note-linking model are usable.
+- Next implementation point is V2 Point 1. Ask the user before starting it.
 
 ## Redesign goals
 
@@ -194,6 +195,225 @@ Acceptance:
 
 - Existing notes can be corrected without leaving the Journal flow.
 - Task links are easier to add than using a raw dropdown for every note.
+
+## Flow Desk V2 Workbench Plan
+
+### Why V2, Not A Rewrite
+
+Decision:
+
+- Do not restart from scratch.
+- Keep the current backend domain: tasks, work sessions, experiments, planned sessions, references, and notes.
+- Treat the weak part as the frontend interaction model plus the note model.
+- Build a v2 workbench and linked-note layer inside the current repo, then retire older page patterns gradually.
+
+Reasoning:
+
+- The existing domain entities are still aligned with the product.
+- Reporting needs the structured task/experiment/time data already present.
+- A full rewrite would delay the same product decisions and risk losing working persistence/API behavior.
+
+### V2 Product Direction
+
+Flow Desk should feel like an integrated workbench, not a collection of independent pages.
+
+Primary principles:
+
+- Entities are clickable everywhere: task, experiment, planned session, journal bullet, tag, and GitHub reference.
+- The user should rarely need left navigation to continue a workflow.
+- Home should be the main workbench: journal, selected/current task, and operational context.
+- Notes are working memory, not a separate side feature.
+- Tags and references inside notes become reporting dimensions.
+- Structured reporting remains the key differentiator from Logseq/Todoist-like tools.
+
+Reference products to keep in mind:
+
+- Logseq: bullet journal, backlinks, markdown, tag-first note flow.
+- Todoist: fast task capture, low-friction triage, clear task states.
+- ClickClick or command-style launchers: quick actions and fast switching without page hunting.
+
+### V2 Medium Note Scope
+
+Target scope:
+
+- Editable daily bullet notes.
+- Markdown content per bullet.
+- `#tag` support inside notes.
+- Task and experiment references from notes.
+- Backlinks from task/experiment/tag views to related note bullets.
+- Reusable note components in Home, Journal, Task Detail, and Experiment Detail.
+- Reporting can later aggregate by task, experiment, time session, and note tags.
+
+Explicitly out of scope for the first pass:
+
+- Full Logseq clone behavior.
+- Arbitrary graph visualization.
+- Block transclusion.
+- Complex nested block drag/reorder.
+- Collaborative editing.
+
+### V2 Data Direction
+
+Likely model evolution:
+
+- Add `NoteBlock` or equivalent block-level note entity:
+  - `id`
+  - `journal_day`
+  - `content_markdown`
+  - `parent_id` nullable, for future nested bullets
+  - `sort_order`
+  - timestamps
+- Add parsed note links:
+  - `note_block_id`
+  - `target_type`: `task`, `experiment`, `tag`
+  - `target_id` for structured entities
+  - `tag_name` for tags
+
+Compatibility rule:
+
+- Preserve or migrate current notes deliberately.
+- Do not remove current note APIs until the new note block APIs and UI cover existing behavior.
+- Do not assume task titles are unique; references must resolve to stable ids even if display text uses titles.
+
+### V2 Point 1. Workbench Interaction Architecture
+
+Status: next, ask before starting.
+
+Scope:
+
+- Define the new primary app shell behavior.
+- Make Home a workbench rather than a dashboard.
+- Add a selected-entity/inspector pattern or equivalent detail surface.
+- Make every visible task reference open task detail or the inspector.
+- Make every visible experiment reference open experiment detail.
+- Show newly created Backlog tasks immediately in Home context.
+- Reduce dependence on left navigation for normal workflows.
+
+Acceptance:
+
+- Creating a Backlog task from Home leaves it visible on Home immediately.
+- From Home, task detail is reachable directly from task rows/cards.
+- From task detail, experiment detail is reachable directly from experiment rows/cards.
+- The user can follow task -> experiment -> notes/context without returning to the left nav.
+- No backend contract change unless strictly required.
+
+### V2 Point 2. Note Block Backend Foundation
+
+Status: planned.
+
+Scope:
+
+- Add block-level note persistence and migrations.
+- Add note link/tag parsing on create/update.
+- Add APIs for daily note blocks, block update, and backlink queries.
+- Keep old note behavior working or provide a clear migration path.
+
+Acceptance:
+
+- A daily bullet can be created, edited, and reloaded.
+- `#tag` references are stored/queryable.
+- Task/experiment links use stable ids, not title uniqueness.
+- Existing backend tests remain green and new note-block tests cover parsing and backlinks.
+
+### V2 Point 3. Bullet Journal UI
+
+Status: planned.
+
+Scope:
+
+- Build a reusable bullet note editor component.
+- Support markdown writing and rendering.
+- Support editing existing bullets.
+- Use the same component in Journal and Home.
+- Keep keyboard interaction simple and reliable before adding advanced shortcuts.
+
+Acceptance:
+
+- Existing notes can be edited.
+- Daily journal feels like a bullet stream, not isolated form submissions.
+- Markdown is readable in display mode and editable in edit mode.
+- Mobile layout remains usable.
+
+### V2 Point 4. Tags, References, And Backlinks
+
+Status: planned.
+
+Scope:
+
+- Add `#tag` recognition and tag browsing.
+- Add lightweight task/experiment reference insertion from notes.
+- Add backlink panels on task and experiment detail.
+- Add a tag view or filtered note view for all bullets with a tag.
+
+Acceptance:
+
+- From a note, the user can reference a tag without leaving the note flow.
+- From a task, the user can see linked journal bullets.
+- From an experiment, the user can see linked journal bullets.
+- From a tag, the user can see all matching note bullets.
+
+### V2 Point 5. Home Workbench Redesign
+
+Status: planned.
+
+Scope:
+
+- Rebuild Home around:
+  - Today bullet journal
+  - active or selected task
+  - Backlog/Ready/Waiting context
+  - running/stalled experiments
+  - planned sessions
+- Make Home the default place to continue work, not just observe state.
+- Keep creation actions lightweight and contextual.
+
+Acceptance:
+
+- Home shows newly created Backlog tasks.
+- Home supports opening task and experiment details directly.
+- Notes and task context are visible together without feeling crowded.
+- The default page feels operational and serious, not toy-like.
+
+### V2 Point 6. Experiment Detail And Comments
+
+Status: planned.
+
+Scope:
+
+- Add experiment detail view.
+- Display instruction and launch command as code-friendly content.
+- Surface experiment-scoped comments/notes.
+- Show linked task, backlinks, artifacts/log paths, and run metadata.
+
+Acceptance:
+
+- Experiment detail is reachable from task detail and experiment registry.
+- Long commands/instructions do not break desktop or mobile layout.
+- Experiment notes/comments are visible and appendable.
+
+### V2 Point 7. Reporting Integration
+
+Status: planned after workbench/note foundations.
+
+Scope:
+
+- Use structured tasks, experiments, work sessions, and note tags together.
+- Start with simple read models before complex charts.
+- Let tags become reporting filters/dimensions.
+
+Acceptance:
+
+- A report can answer what work happened by task/macro-activity.
+- A report can include related notes/tags for context.
+- Tags can help summarize themes across tasks and experiments.
+
+### V2 Coordination Rule
+
+- Proceed point by point.
+- Ask the user before starting each V2 point.
+- Keep checkpoint commits after each point.
+- Update this plan and `AGENTS.md` whenever the active point or order changes.
+- Prefer a working integrated slice over broad partial rewrites.
 
 ## Verification per point
 
