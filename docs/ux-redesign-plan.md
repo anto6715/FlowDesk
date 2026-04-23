@@ -25,9 +25,10 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - Planned-session interaction polish completed in `ba3540a`.
 - V2 Point 1 workbench interaction architecture completed in `f8eb66d`.
 - V2 Point 2 note block backend foundation completed in `154f024`.
+- V2 Point 3 bullet journal UI completed in `44605d3`.
 - Current priority is Flow Desk v2 workbench redesign, not isolated page polish.
 - Do not start broad reporting/export work until the workbench and note-linking model are usable.
-- Next implementation point is V2 Point 3. Ask the user before starting it.
+- Next implementation point is V2 Point 4. Ask the user before starting it.
 
 ## Redesign goals
 
@@ -325,7 +326,7 @@ Acceptance:
 
 ### V2 Point 3. Bullet Journal UI
 
-Status: next, ask before starting.
+Status: completed in `44605d3`.
 
 Scope:
 
@@ -342,9 +343,15 @@ Acceptance:
 - Markdown is readable in display mode and editable in edit mode.
 - Mobile layout remains usable.
 
+Implementation notes:
+
+- Home quick note actions and the Journal workspace now share the same block editor.
+- The frontend now reads and updates daily `note_blocks` directly while leaving legacy journal rows as a backend-managed compatibility bridge.
+- Editing is intentionally simple: textarea-based markdown, optional linked task selection, and lightweight save shortcuts before adding richer note-reference insertion.
+
 ### V2 Point 4. Tags, References, And Backlinks
 
-Status: planned.
+Status: next, ask before starting.
 
 Scope:
 

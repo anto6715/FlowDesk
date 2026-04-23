@@ -50,6 +50,7 @@
 - Active plan is now Flow Desk v2 workbench redesign: medium Logseq-style editable note blocks, tags, backlinks, and integrated task/experiment navigation
 - V2 Point 1 workbench interaction architecture committed in `f8eb66d`
 - V2 Point 2 note block backend foundation committed in `154f024`
+- V2 Point 3 bullet journal UI committed in `44605d3`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
@@ -86,6 +87,9 @@
   - planned sessions on Home, Calendar, and task detail open a management dialog for rescheduling, completing, canceling/reopening, and starting/switching to the linked task
   - Home now shows Backlog context directly; task and experiment references can open detail views without using left navigation
   - experiment detail view exists with linked task navigation, run metadata, instruction/command display, and experiment notes
+  - reusable bullet note editor and markdown renderer shared by Home and Journal
+  - Home and Journal now use daily note blocks instead of append-only legacy journal rendering
+  - existing daily bullets can be edited in place in Journal and from Home quick actions
   - `scripts/dev.sh` starts the local SQLite database path, Alembic migrations, backend, and frontend together
   - mobile task and experiment tables render as stacked card rows instead of horizontal scrollers
   - desktop/mobile visual smoke pass for Home, Tasks, Task Detail, Journal, Experiments, and Calendar with no page-level horizontal overflow
@@ -129,11 +133,10 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. V2 Point 3: bullet journal UI
-2. V2 Point 4: tags, references, and backlinks
-3. V2 Point 5: Home workbench redesign
-4. V2 Point 6: experiment detail and comments
-5. V2 Point 7: reporting integration
+1. V2 Point 4: tags, references, and backlinks
+2. V2 Point 5: Home workbench redesign
+3. V2 Point 6: experiment detail and comments
+4. V2 Point 7: reporting integration
 
 ## Commit guidance
 
