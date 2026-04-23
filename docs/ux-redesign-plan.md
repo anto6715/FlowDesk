@@ -23,9 +23,10 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - UX redesign pass is complete.
 - Post-redesign task workflow UI polish completed in `e7ae703`.
 - Planned-session interaction polish completed in `ba3540a`.
+- V2 Point 1 workbench interaction architecture completed in `f8eb66d`.
 - Current priority is Flow Desk v2 workbench redesign, not isolated page polish.
 - Do not start broad reporting/export work until the workbench and note-linking model are usable.
-- Next implementation point is V2 Point 1. Ask the user before starting it.
+- Next implementation point is V2 Point 2. Ask the user before starting it.
 
 ## Redesign goals
 
@@ -277,7 +278,7 @@ Compatibility rule:
 
 ### V2 Point 1. Workbench Interaction Architecture
 
-Status: next, ask before starting.
+Status: completed in `f8eb66d`.
 
 Scope:
 
@@ -299,7 +300,7 @@ Acceptance:
 
 ### V2 Point 2. Note Block Backend Foundation
 
-Status: planned.
+Status: next, ask before starting.
 
 Scope:
 
