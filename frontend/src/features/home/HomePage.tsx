@@ -78,9 +78,12 @@ const initialState: DashboardState = {
   syncedAt: null
 };
 
-function countByStatus(tasks: Task[], status: Task["status"]) {
-  return tasks.filter((task) => task.status === status).length;
-}
+type HomeQuickAction =
+  | { kind: "task" }
+  | { kind: "note-create" }
+  | { kind: "note-edit"; block: NoteBlock }
+  | { kind: "experiment" }
+  | null;
 
 function formatDateTime(iso: string | null) {
   if (iso === null) {
@@ -91,6 +94,15 @@ function formatDateTime(iso: string | null) {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(iso));
+}
+
+function formatDayKey(dayKey: string) {
+  const [year, month, day] = dayKey.split("-").map(Number);
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric"
+  }).format(new Date(year, month - 1, day));
 }
 
 function formatTimeRange(startsAt: string, endsAt: string) {
@@ -139,12 +151,39 @@ function localDayBounds(dayKey: string) {
   };
 }
 
-type HomeQuickAction =
-  | { kind: "task" }
-  | { kind: "note-create" }
-  | { kind: "note-edit"; block: NoteBlock }
-  | { kind: "experiment" }
-  | null;
+function taskIsOpen(task: Task) {
+  return !["done", "archived"].includes(task.status);
+}
+
+function shortenId(id: string) {
+  return id.slice(0, 8);
+}
+
+function formatTaskIdentity(task: Task) {
+  return `${task.title} • ${shortenId(task.id)}`;
+}
+
+function compareByUpdatedDesc(left: { updated_at: string }, right: { updated_at: string }) {
+  return new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime();
+}
+
+function compareByStartsAt(left: ScheduledBlock, right: ScheduledBlock) {
+  return new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime();
+}
+
+function noteHasTaskLink(block: NoteBlock, taskId: string) {
+  return block.links.some(
+    (link) => link.target_type === "task" && link.target_id === taskId
+  );
+}
+
+function taskQueueSummary(task: Task) {
+  const parts = [formatTaskStatus(task.status), task.priority, shortenId(task.id)];
+  if (task.waiting_reason !== null) {
+    parts.splice(1, 0, waitingLabel(task.waiting_reason));
+  }
+  return parts.join(" · ");
+}
 
 interface HomePageProps {
   onOpenExperiment: (experimentId: string) => void;
@@ -159,6 +198,7 @@ export function HomePage({ onOpenExperiment, onOpenTag, onOpenTask }: HomePagePr
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [quickAction, setQuickAction] = useState<HomeQuickAction>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedScheduledBlockId, setSelectedScheduledBlockId] = useState<string | null>(null);
   const [waitingReason, setWaitingReason] = useState<WaitingReason>("experiment_running");
 
@@ -193,6 +233,7 @@ export function HomePage({ onOpenExperiment, onOpenTag, onOpenTask }: HomePagePr
         }),
         listJournalNoteBlocks(journalDay)
       ]);
+
       startTransition(() => {
         setDashboard({
           tasks,
@@ -229,29 +270,33 @@ export function HomePage({ onOpenExperiment, onOpenTag, onOpenTask }: HomePagePr
     return () => window.clearInterval(intervalId);
   }, []);
 
-  async function handleStartTask(taskId: string) {
-    setBusyTaskId(taskId);
-    try {
-      await startTask(taskId);
-      await loadDashboard({ background: true });
-    } catch (taskError) {
-      setError(taskError instanceof Error ? taskError.message : "Failed to start task.");
-    } finally {
-      setBusyTaskId(null);
-    }
-  }
-
-  async function handleSwitchTask(toTaskId: string) {
-    if (dashboard.activeTask === null) {
+  useEffect(() => {
+    if (selectedTaskId === null) {
       return;
     }
 
-    setBusyTaskId(toTaskId);
+    const selectedTask = dashboard.tasks.find((task) => task.id === selectedTaskId) ?? null;
+    if (selectedTask === null || !taskIsOpen(selectedTask)) {
+      setSelectedTaskId(null);
+    }
+  }, [dashboard.tasks, selectedTaskId]);
+
+  async function handleBeginTask(taskId: string) {
+    if (dashboard.activeTask?.id === taskId) {
+      return;
+    }
+
+    setBusyTaskId(taskId);
     try {
-      await switchTask(dashboard.activeTask.id, toTaskId);
+      if (dashboard.activeTask !== null) {
+        await switchTask(dashboard.activeTask.id, taskId);
+      } else {
+        await startTask(taskId);
+      }
+
       await loadDashboard({ background: true });
     } catch (taskError) {
-      setError(taskError instanceof Error ? taskError.message : "Failed to switch task.");
+      setError(taskError instanceof Error ? taskError.message : "Failed to begin task.");
     } finally {
       setBusyTaskId(null);
     }
@@ -306,12 +351,55 @@ export function HomePage({ onOpenExperiment, onOpenTag, onOpenTask }: HomePagePr
         references: input.references
       });
     }
+
     setQuickAction(null);
     await loadDashboard({ background: true });
   }
 
-  const openTasks = dashboard.tasks.filter((task) => !["done", "archived"].includes(task.status));
+  const openTasks = dashboard.tasks.filter(taskIsOpen);
   const activeTaskId = dashboard.activeTask?.id ?? null;
+  const selectedTask =
+    selectedTaskId !== null
+      ? dashboard.tasks.find((task) => task.id === selectedTaskId) ?? null
+      : null;
+  const backlogTasks = openTasks.filter((task) => task.status === "inbox");
+  const readyTasks = openTasks.filter((task) => task.status === "ready");
+  const waitingTasks = openTasks.filter((task) => task.status === "waiting");
+  const blockedTasks = openTasks.filter((task) => task.status === "blocked");
+  const focusTask =
+    selectedTask ??
+    dashboard.activeTask ??
+    readyTasks[0] ??
+    backlogTasks[0] ??
+    waitingTasks[0] ??
+    blockedTasks[0] ??
+    openTasks[0] ??
+    null;
+  const focusTaskId = focusTask?.id ?? null;
+  const isFocusedTaskActive = focusTaskId !== null && focusTaskId === activeTaskId;
+  const hasPinnedTaskFocus =
+    focusTaskId !== null && selectedTaskId !== null && selectedTaskId === focusTaskId;
+  const canBeginFocusedTask =
+    focusTask !== null && taskIsOpen(focusTask) && focusTask.id !== activeTaskId;
+  const latestJournalBlocks = [...dashboard.journalBlocks]
+    .sort(compareByUpdatedDesc)
+    .slice(0, 6);
+  const nextScheduledBlocks = [...dashboard.scheduledBlocks]
+    .sort(compareByStartsAt)
+    .slice(0, 4);
+  const runningExperiments = dashboard.experiments.filter(
+    (experiment) => experiment.status === "running"
+  );
+  const stalledExperiments = dashboard.experiments.filter(
+    (experiment) => experiment.status === "stalled"
+  );
+  const attentionExperiments = [...stalledExperiments, ...runningExperiments]
+    .sort(compareByUpdatedDesc)
+    .slice(0, 4);
+  const selectedScheduledBlock =
+    selectedScheduledBlockId !== null
+      ? dashboard.scheduledBlocks.find((block) => block.id === selectedScheduledBlockId) ?? null
+      : null;
   const taskLookup = new Map(dashboard.tasks.map((task) => [task.id, task]));
   const macroActivityLookup = new Map(
     dashboard.macroActivities.map((macroActivity) => [macroActivity.id, macroActivity])
@@ -325,36 +413,90 @@ export function HomePage({ onOpenExperiment, onOpenTag, onOpenTask }: HomePagePr
   const usedGithubReferenceIds = new Set(
     dashboard.tasks.flatMap((task) => (task.github_reference_id ? [task.github_reference_id] : []))
   );
-  const readyTasks = openTasks
-    .filter((task) => task.id !== activeTaskId && task.status === "ready")
-    .slice(0, 4);
-  const backlogTasks = openTasks
-    .filter((task) => task.id !== activeTaskId && task.status === "inbox")
-    .slice(0, 4);
-  const latestJournalBlocks = [...dashboard.journalBlocks]
-    .sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime())
-    .slice(0, 3);
-  const nextScheduledBlocks = [...dashboard.scheduledBlocks]
-    .sort((left, right) => new Date(left.starts_at).getTime() - new Date(right.starts_at).getTime())
-    .slice(0, 2);
-  const selectedScheduledBlock =
-    selectedScheduledBlockId !== null
-      ? dashboard.scheduledBlocks.find((block) => block.id === selectedScheduledBlockId) ?? null
+  const journalLinkedTaskCount = new Set(
+    dashboard.journalBlocks.flatMap((block) =>
+      block.links
+        .filter((link) => link.target_type === "task" && link.target_id !== null)
+        .map((link) => link.target_id as string)
+    )
+  ).size;
+  const focusTaskJournalBlocks = focusTask
+    ? [...dashboard.journalBlocks]
+        .filter((block) => noteHasTaskLink(block, focusTask.id))
+        .sort(compareByUpdatedDesc)
+        .slice(0, 2)
+    : [];
+  const focusTaskJournalCount = focusTask
+    ? dashboard.journalBlocks.filter((block) => noteHasTaskLink(block, focusTask.id)).length
+    : 0;
+  const focusTaskExperiments = focusTask
+    ? dashboard.experiments
+        .filter((experiment) => experiment.task_id === focusTask.id)
+        .sort(compareByUpdatedDesc)
+        .slice(0, 3)
+    : [];
+  const focusTaskExperimentCount = focusTask
+    ? dashboard.experiments.filter((experiment) => experiment.task_id === focusTask.id).length
+    : 0;
+  const focusTaskScheduledBlocks = focusTask
+    ? dashboard.scheduledBlocks
+        .filter((block) => block.task_id === focusTask.id)
+        .sort(compareByStartsAt)
+        .slice(0, 3)
+    : [];
+  const focusTaskScheduledCount = focusTask
+    ? dashboard.scheduledBlocks.filter((block) => block.task_id === focusTask.id).length
+    : 0;
+  const focusMacroActivity =
+    focusTask?.macro_activity_id !== null && focusTask !== null
+      ? macroActivityLookup.get(focusTask.macro_activity_id)
       : null;
-  const runningExperiments = dashboard.experiments.filter(
-    (experiment) => experiment.status === "running"
-  );
-  const stalledExperiments = dashboard.experiments.filter(
-    (experiment) => experiment.status === "stalled"
-  );
-  const attentionExperiments = [...stalledExperiments, ...runningExperiments].slice(0, 3);
+  const focusGitHubReference =
+    focusTask?.github_reference_id !== null && focusTask !== null
+      ? githubReferenceLookup.get(focusTask.github_reference_id)
+      : null;
+  const queueSections: Array<{
+    count: number;
+    empty: string;
+    tasks: Task[];
+    title: string;
+  }> = [
+    {
+      title: "Backlog",
+      count: backlogTasks.length,
+      tasks: backlogTasks.slice(0, 4),
+      empty: "No backlog tasks."
+    },
+    {
+      title: "Ready",
+      count: readyTasks.length,
+      tasks: readyTasks.slice(0, 4),
+      empty: "No ready tasks."
+    },
+    {
+      title: "Waiting",
+      count: waitingTasks.length,
+      tasks: waitingTasks.slice(0, 4),
+      empty: "No waiting tasks."
+    },
+    {
+      title: "Blocked",
+      count: blockedTasks.length,
+      tasks: blockedTasks.slice(0, 3),
+      empty: "No blocked tasks."
+    }
+  ];
 
   return (
     <main className="page-shell page-shell--home">
       <section className="hero hero--compact">
         <div>
           <p className="eyebrow">Home</p>
-          <h1>Today</h1>
+          <h1>Workbench</h1>
+          <p className="home-hero-copy">
+            {formatDayKey(dashboard.journalDay)}. Journal, task focus, and live operational context
+            stay on one screen.
+          </p>
         </div>
         <div className="home-toolbar">
           <div className="home-action-group" aria-label="Quick actions">
@@ -392,167 +534,58 @@ export function HomePage({ onOpenExperiment, onOpenTag, onOpenTask }: HomePagePr
       {error ? <div className="banner banner--error">{error}</div> : null}
       {isLoading ? <div className="banner">Loading Flow Desk...</div> : null}
 
-      <section className="home-dashboard-grid" aria-label="Today workspace">
-        <article className="summary-card summary-card--spotlight home-active-card">
-          <p className="section-kicker">Active task</p>
-          {dashboard.activeTask ? (
-            <>
-              <h2>{dashboard.activeTask.title}</h2>
-              <p className="summary-copy">
-                {dashboard.activeTask.description || "No description yet."}
-              </p>
-              <div className="pill-row">
-                <span className={`pill pill--${dashboard.activeTask.status}`}>
-                  {formatTaskStatus(dashboard.activeTask.status)}
-                </span>
-                <span className={`pill pill--priority-${dashboard.activeTask.priority}`}>
-                  {dashboard.activeTask.priority}
-                </span>
-              </div>
-              <div className="context-row">
-                <span>
-                  Macro:{" "}
-                  {dashboard.activeTask.macro_activity_id
-                    ? macroActivityLookup.get(dashboard.activeTask.macro_activity_id)?.name ??
-                      "Unknown"
-                    : "None"}
-                </span>
-                <span>
-                  GitHub:{" "}
-                  {dashboard.activeTask.github_reference_id
-                    ? githubReferenceLookup.get(dashboard.activeTask.github_reference_id)
-                      ? formatGitHubReference(
-                          githubReferenceLookup.get(
-                            dashboard.activeTask.github_reference_id
-                          ) as GitHubReference
-                        )
-                      : "Unknown"
-                    : "None"}
-                </span>
-              </div>
-              <div className="stat-strip">
-                <div>
-                  <span>Started</span>
-                  <strong>{formatDateTime(dashboard.activeSessionStartedAt)}</strong>
-                </div>
-                <div>
-                  <span>Elapsed</span>
-                  <strong>{formatElapsed(dashboard.activeSessionStartedAt)}</strong>
-                </div>
-                <div>
-                  <span>Waiting reason</span>
-                  <strong>{waitingLabel(dashboard.activeTask.waiting_reason)}</strong>
-                </div>
-              </div>
-              <div className="action-row home-active-actions">
-                <button
-                  className="button button--ghost"
-                  onClick={() => {
-                    if (activeTaskId) {
-                      onOpenTask(activeTaskId);
-                    }
-                  }}
-                  type="button"
-                >
-                  Open detail
-                </button>
-                <button
-                  className="button button--ghost"
-                  disabled={busyTaskId === dashboard.activeTask.id}
-                  onClick={() => void handlePauseActiveTask("pause")}
-                  type="button"
-                >
-                  Pause
-                </button>
-                <button
-                  className="button button--accent"
-                  disabled={busyTaskId === dashboard.activeTask.id}
-                  onClick={() => void handlePauseActiveTask("complete")}
-                  type="button"
-                >
-                  Complete
-                </button>
-              </div>
-              <details className="home-waiting-details">
-                <summary>Move to waiting</summary>
-                <div className="waiting-bar waiting-bar--compact">
-                  <label>
-                    <span>Reason</span>
-                    <select
-                      onChange={(event) => setWaitingReason(event.target.value as WaitingReason)}
-                      value={waitingReason}
-                    >
-                      {waitingOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    className="button button--warning"
-                    disabled={busyTaskId === dashboard.activeTask.id}
-                    onClick={() => void handlePauseActiveTask("waiting")}
-                    type="button"
-                  >
-                    Wait
-                  </button>
-                </div>
-              </details>
-            </>
-          ) : (
-            <>
-              <h2>No task is active</h2>
-              <p className="summary-copy">
-                Start a ready task or open the Tasks workspace to pick from Backlog.
-              </p>
-              {readyTasks.length > 0 ? (
-                <ul className="entity-list home-ready-list">
-                  {readyTasks.map((task) => (
-                    <li className="entity-row" key={task.id}>
-                      <button
-                        className="entity-row__body-button"
-                        onClick={() => onOpenTask(task.id)}
-                        type="button"
-                      >
-                        <strong>{task.title}</strong>
-                        <span>{formatTaskStatus(task.status)}</span>
-                      </button>
-                      <button
-                        className="button button--accent button--small"
-                        disabled={busyTaskId === task.id}
-                        onClick={() => void handleStartTask(task.id)}
-                        type="button"
-                      >
-                        {busyTaskId === task.id ? "Starting..." : "Start"}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="empty-ribbon">No ready tasks yet</div>
-              )}
-            </>
-          )}
+      <section className="home-overview-strip" aria-label="Workbench overview">
+        <article>
+          <span>Bullets today</span>
+          <strong>{dashboard.journalBlocks.length}</strong>
         </article>
+        <article>
+          <span>Task-linked bullets</span>
+          <strong>{journalLinkedTaskCount}</strong>
+        </article>
+        <article>
+          <span>Backlog</span>
+          <strong>{backlogTasks.length}</strong>
+        </article>
+        <article>
+          <span>Ready</span>
+          <strong>{readyTasks.length}</strong>
+        </article>
+        <article>
+          <span>Waiting</span>
+          <strong>{waitingTasks.length}</strong>
+        </article>
+        <article>
+          <span>Stalled runs</span>
+          <strong>{stalledExperiments.length}</strong>
+        </article>
+        <article>
+          <span>Planned today</span>
+          <strong>{dashboard.scheduledBlocks.length}</strong>
+        </article>
+      </section>
 
-        <article className="panel panel--stack home-journal-panel">
-          <div className="panel-header panel-header--compact">
+      <section className="home-workbench-grid" aria-label="Today workspace">
+        <article className="panel panel--stack home-journal-workbench">
+          <div className="panel-header">
             <div>
-              <p className="section-kicker">Journal</p>
+              <p className="section-kicker">Today journal</p>
               <h2>{dashboard.journalDay}</h2>
             </div>
-            <button
-              className="button button--ghost button--mini"
-              onClick={() => openQuickAction({ kind: "note-create" })}
-              type="button"
-            >
-              + Note
-            </button>
+            <div className="home-panel-actions">
+              <span className="count-chip">{dashboard.journalBlocks.length}</span>
+              <button
+                className="button button--ghost button--small"
+                onClick={() => openQuickAction({ kind: "note-create" })}
+                type="button"
+              >
+                + Note
+              </button>
+            </div>
           </div>
 
           {latestJournalBlocks.length > 0 ? (
-            <ol className="journal-list">
+            <ol className="journal-list journal-list--long">
               {latestJournalBlocks.map((block) => (
                 <BulletNoteCard
                   block={block}
@@ -571,40 +604,445 @@ export function HomePage({ onOpenExperiment, onOpenTag, onOpenTask }: HomePagePr
           )}
         </article>
 
-        <article className="panel panel--stack home-next-panel">
-          <div className="panel-header panel-header--compact">
+        <article className="summary-card summary-card--spotlight home-focus-panel">
+          <p className="section-kicker">
+            {isFocusedTaskActive
+              ? "Active task"
+              : hasPinnedTaskFocus
+                ? "Selected task"
+                : "Home focus"}
+          </p>
+
+          {focusTask ? (
+            <>
+              <div className="home-focus-header">
+                <div>
+                  <h2>{focusTask.title}</h2>
+                  <p className="summary-copy">
+                    {focusTask.description || "No description yet."}
+                  </p>
+                </div>
+                {hasPinnedTaskFocus ? (
+                  <button
+                    className="button button--ghost button--small"
+                    onClick={() => setSelectedTaskId(null)}
+                    type="button"
+                  >
+                    {dashboard.activeTask ? "Follow active task" : "Clear focus"}
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="pill-row home-focus-status">
+                <span className={`pill pill--${focusTask.status}`}>
+                  {formatTaskStatus(focusTask.status)}
+                </span>
+                <span className={`pill pill--priority-${focusTask.priority}`}>
+                  {focusTask.priority}
+                </span>
+                {isFocusedTaskActive ? (
+                  <span className="pill pill--ready">Live on Home</span>
+                ) : hasPinnedTaskFocus ? (
+                  <span className="pill pill--queued">Pinned on Home</span>
+                ) : (
+                  <span className="pill pill--inbox">Queue-selected</span>
+                )}
+              </div>
+
+              <div className="context-row">
+                <span>Task id: {shortenId(focusTask.id)}</span>
+                <span>Macro: {focusMacroActivity?.name ?? "None"}</span>
+                <span>
+                  GitHub:{" "}
+                  {focusGitHubReference ? (
+                    <a
+                      className="text-link"
+                      href={focusGitHubReference.issue_url}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {formatGitHubReference(focusGitHubReference)}
+                    </a>
+                  ) : (
+                    "None"
+                  )}
+                </span>
+              </div>
+
+              <div className="stat-strip">
+                <div>
+                  <span>{isFocusedTaskActive ? "Elapsed" : "Updated"}</span>
+                  <strong>
+                    {isFocusedTaskActive
+                      ? formatElapsed(dashboard.activeSessionStartedAt)
+                      : formatDateTime(focusTask.updated_at)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Bullets today</span>
+                  <strong>{focusTaskJournalCount}</strong>
+                </div>
+                <div>
+                  <span>Experiments</span>
+                  <strong>{focusTaskExperimentCount}</strong>
+                </div>
+              </div>
+
+              <div className="action-row home-focus-actions home-focus-actions--utility">
+                <button
+                  className="button button--ghost"
+                  onClick={() => onOpenTask(focusTask.id)}
+                  type="button"
+                >
+                  Open detail
+                </button>
+                <button
+                  className="button button--ghost"
+                  onClick={() => openQuickAction({ kind: "note-create" })}
+                  type="button"
+                >
+                  Add linked note
+                </button>
+                <button
+                  className="button button--ghost"
+                  onClick={() => openQuickAction({ kind: "experiment" })}
+                  type="button"
+                >
+                  New experiment
+                </button>
+              </div>
+
+              {isFocusedTaskActive ? (
+                <>
+                  <div className="action-row home-focus-actions">
+                    <button
+                      className="button button--ghost"
+                      disabled={busyTaskId === focusTask.id}
+                      onClick={() => void handlePauseActiveTask("pause")}
+                      type="button"
+                    >
+                      Pause
+                    </button>
+                    <button
+                      className="button button--accent"
+                      disabled={busyTaskId === focusTask.id}
+                      onClick={() => void handlePauseActiveTask("complete")}
+                      type="button"
+                    >
+                      Complete
+                    </button>
+                  </div>
+
+                  <details className="home-waiting-details">
+                    <summary>Move to waiting</summary>
+                    <div className="waiting-bar waiting-bar--compact">
+                      <label>
+                        <span>Reason</span>
+                        <select
+                          onChange={(event) => setWaitingReason(event.target.value as WaitingReason)}
+                          value={waitingReason}
+                        >
+                          {waitingOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        className="button button--warning"
+                        disabled={busyTaskId === focusTask.id}
+                        onClick={() => void handlePauseActiveTask("waiting")}
+                        type="button"
+                      >
+                        Wait
+                      </button>
+                    </div>
+                  </details>
+                </>
+              ) : canBeginFocusedTask ? (
+                <div className="action-row home-focus-actions">
+                  <button
+                    className="button button--accent"
+                    disabled={busyTaskId === focusTask.id}
+                    onClick={() => void handleBeginTask(focusTask.id)}
+                    type="button"
+                  >
+                    {busyTaskId === focusTask.id
+                      ? dashboard.activeTask
+                        ? "Switching..."
+                        : "Starting..."
+                      : dashboard.activeTask
+                        ? "Switch now"
+                        : "Start now"}
+                  </button>
+                </div>
+              ) : null}
+
+              <div className="home-focus-stack">
+                <section className="home-focus-section">
+                  <div className="home-mini-header">
+                    <h3>Linked bullets today</h3>
+                    <span>{focusTaskJournalCount}</span>
+                  </div>
+                  {focusTaskJournalBlocks.length > 0 ? (
+                    <ol className="journal-list journal-list--compact">
+                      {focusTaskJournalBlocks.map((block) => (
+                        <BulletNoteCard
+                          block={block}
+                          experimentLookup={experimentLookup}
+                          key={block.id}
+                          onEdit={(nextBlock) => setQuickAction({ kind: "note-edit", block: nextBlock })}
+                          onOpenExperiment={onOpenExperiment}
+                          onOpenTag={onOpenTag}
+                          onOpenTask={onOpenTask}
+                          taskLookup={taskLookup}
+                        />
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="empty-state">No bullets linked to this task today.</p>
+                  )}
+                </section>
+
+                <section className="home-focus-section">
+                  <div className="home-mini-header">
+                    <h3>Task experiments</h3>
+                    <span>{focusTaskExperimentCount}</span>
+                  </div>
+                  {focusTaskExperiments.length > 0 ? (
+                    <ul className="entity-list">
+                      {focusTaskExperiments.map((experiment) => (
+                        <li
+                          className={
+                            experiment.status === "stalled"
+                              ? "entity-row entity-row--alert"
+                              : "entity-row"
+                          }
+                          key={experiment.id}
+                        >
+                          <button
+                            className="entity-row__body-button"
+                            onClick={() => onOpenExperiment(experiment.id)}
+                            type="button"
+                          >
+                            <strong>{experiment.title}</strong>
+                            <span>{formatDateTime(experiment.updated_at)}</span>
+                          </button>
+                          <div className="entity-row__meta-stack">
+                            <span className={`pill pill--${experiment.status}`}>{experiment.status}</span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="empty-state">No experiments registered for this task.</p>
+                  )}
+                </section>
+
+                <section className="home-focus-section">
+                  <div className="home-mini-header">
+                    <h3>Planned sessions</h3>
+                    <span>{focusTaskScheduledCount}</span>
+                  </div>
+                  {focusTaskScheduledBlocks.length > 0 ? (
+                    <ul className="entity-list entity-list--timeline">
+                      {focusTaskScheduledBlocks.map((block) => (
+                        <li className="entity-row" key={block.id}>
+                          <button
+                            className="entity-row__body-button"
+                            onClick={() => setSelectedScheduledBlockId(block.id)}
+                            type="button"
+                          >
+                            <strong>
+                              {block.title_override ?? formatTaskIdentity(focusTask)}
+                            </strong>
+                            <span>{formatTimeRange(block.starts_at, block.ends_at)}</span>
+                          </button>
+                          <div className="entity-row__meta-stack">
+                            <span className={`pill pill--${block.status}`}>
+                              {formatScheduledBlockStatus(block.status)}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="empty-state">No planned sessions for this task today.</p>
+                  )}
+                </section>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2>No task in focus</h2>
+              <p className="summary-copy">
+                Create a task or pull one from Backlog to make Home the place you continue work.
+              </p>
+              <div className="action-row home-focus-actions">
+                <button
+                  className="button button--accent"
+                  onClick={() => openQuickAction({ kind: "task" })}
+                  type="button"
+                >
+                  + Task
+                </button>
+                <button
+                  className="button button--ghost"
+                  onClick={() => openQuickAction({ kind: "note-create" })}
+                  type="button"
+                >
+                  + Note
+                </button>
+              </div>
+            </>
+          )}
+        </article>
+
+        <article className="panel panel--stack home-queue-panel">
+          <div className="panel-header">
             <div>
-              <p className="section-kicker">Next up</p>
-              <h2>Context</h2>
+              <p className="section-kicker">Task context</p>
+              <h2>Queues</h2>
             </div>
             <span className="count-chip">{openTasks.length}</span>
           </div>
 
-          <div className="home-context-stack">
+          <div className="home-queue-stack">
+            {queueSections.map((section) => (
+              <section key={section.title}>
+                <div className="home-mini-header">
+                  <h3>{section.title}</h3>
+                  <span>{section.count}</span>
+                </div>
+                {section.tasks.length > 0 ? (
+                  <ul className="entity-list">
+                    {section.tasks.map((task) => {
+                      const isFocused = focusTaskId === task.id;
+                      const isActive = activeTaskId === task.id;
+                      const canBeginTask = taskIsOpen(task) && task.id !== activeTaskId;
+
+                      return (
+                        <li
+                          className={
+                            isFocused
+                              ? "entity-row home-queue-row home-queue-row--focused"
+                              : "entity-row home-queue-row"
+                          }
+                          key={task.id}
+                        >
+                          <button
+                            className="entity-row__body-button"
+                            onClick={() => setSelectedTaskId(task.id)}
+                            type="button"
+                          >
+                            <strong>{task.title}</strong>
+                            <span>{taskQueueSummary(task)}</span>
+                          </button>
+                          <div className="home-row-actions">
+                            {canBeginTask ? (
+                              <button
+                                className="button button--accent button--small"
+                                disabled={busyTaskId === task.id}
+                                onClick={() => void handleBeginTask(task.id)}
+                                type="button"
+                              >
+                                {busyTaskId === task.id
+                                  ? activeTaskId
+                                    ? "Switching..."
+                                    : "Starting..."
+                                  : activeTaskId
+                                    ? "Switch"
+                                    : "Start"}
+                              </button>
+                            ) : isActive ? (
+                              <button
+                                className="button button--inactive button--small"
+                                disabled
+                                type="button"
+                              >
+                                Active
+                              </button>
+                            ) : null}
+                            <button
+                              className="button button--ghost button--small"
+                              onClick={() => onOpenTask(task.id)}
+                              type="button"
+                            >
+                              Open
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="empty-state">{section.empty}</p>
+                )}
+              </section>
+            ))}
+          </div>
+        </article>
+
+        <article className="panel panel--stack home-operations-panel">
+          <div className="panel-header">
+            <div>
+              <p className="section-kicker">Operational context</p>
+              <h2>Runs and plan</h2>
+            </div>
+            <span className="count-chip">
+              {runningExperiments.length + stalledExperiments.length + dashboard.scheduledBlocks.length}
+            </span>
+          </div>
+
+          <div className="home-queue-stack">
             <section>
               <div className="home-mini-header">
-                <h3>Backlog</h3>
-                <span>{countByStatus(dashboard.tasks, "inbox")}</span>
+                <h3>Running and stalled experiments</h3>
+                <span>{runningExperiments.length + stalledExperiments.length}</span>
               </div>
-              {backlogTasks.length > 0 ? (
+              {attentionExperiments.length > 0 ? (
                 <ul className="entity-list">
-                  {backlogTasks.map((task) => (
-                    <li className="entity-row" key={task.id}>
-                      <button
-                        className="entity-row__body-button"
-                        onClick={() => onOpenTask(task.id)}
-                        type="button"
+                  {attentionExperiments.map((experiment) => {
+                    const linkedTask = taskLookup.get(experiment.task_id) ?? null;
+
+                    return (
+                      <li
+                        className={
+                          experiment.status === "stalled"
+                            ? "entity-row entity-row--alert"
+                            : "entity-row"
+                        }
+                        key={experiment.id}
                       >
-                        <strong>{task.title}</strong>
-                        <span>
-                          {formatTaskStatus(task.status)} - {task.priority}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
+                        <button
+                          className="entity-row__body-button"
+                          onClick={() => onOpenExperiment(experiment.id)}
+                          type="button"
+                        >
+                          <strong>{experiment.title}</strong>
+                          <span>
+                            {linkedTask ? formatTaskIdentity(linkedTask) : "Unknown task"}
+                          </span>
+                        </button>
+                        <div className="home-row-actions">
+                          {linkedTask ? (
+                            <button
+                              className="button button--ghost button--small"
+                              onClick={() => setSelectedTaskId(linkedTask.id)}
+                              type="button"
+                            >
+                              Focus task
+                            </button>
+                          ) : null}
+                          <span className={`pill pill--${experiment.status}`}>{experiment.status}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
-                <p className="empty-state">No backlog tasks.</p>
+                <p className="empty-state">No running or stalled experiments.</p>
               )}
             </section>
 
@@ -615,120 +1053,44 @@ export function HomePage({ onOpenExperiment, onOpenTag, onOpenTask }: HomePagePr
               </div>
               {nextScheduledBlocks.length > 0 ? (
                 <ul className="entity-list entity-list--timeline">
-                  {nextScheduledBlocks.map((block) => (
-                    <li className="entity-row" key={block.id}>
-                      <button
-                        className="entity-row__body-button"
-                        onClick={() => setSelectedScheduledBlockId(block.id)}
-                        type="button"
-                      >
-                        <strong>
-                          {block.title_override ??
-                            taskLookup.get(block.task_id)?.title ??
-                            "Untitled planned session"}
-                        </strong>
-                        <span>{taskLookup.get(block.task_id)?.title ?? "Unknown task"}</span>
-                      </button>
-                      <div className="entity-row__meta-stack">
-                        <time>{formatTimeRange(block.starts_at, block.ends_at)}</time>
-                        <span className={`pill pill--${block.status}`}>
-                          {formatScheduledBlockStatus(block.status)}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
+                  {nextScheduledBlocks.map((block) => {
+                    const linkedTask = taskLookup.get(block.task_id) ?? null;
+
+                    return (
+                      <li className="entity-row" key={block.id}>
+                        <button
+                          className="entity-row__body-button"
+                          onClick={() => setSelectedScheduledBlockId(block.id)}
+                          type="button"
+                        >
+                          <strong>
+                            {block.title_override ??
+                              (linkedTask ? formatTaskIdentity(linkedTask) : "Untitled planned session")}
+                          </strong>
+                          <span>{formatTimeRange(block.starts_at, block.ends_at)}</span>
+                        </button>
+                        <div className="home-row-actions">
+                          {linkedTask ? (
+                            <button
+                              className="button button--ghost button--small"
+                              onClick={() => setSelectedTaskId(linkedTask.id)}
+                              type="button"
+                            >
+                              Focus task
+                            </button>
+                          ) : null}
+                          <span className={`pill pill--${block.status}`}>
+                            {formatScheduledBlockStatus(block.status)}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="empty-state">No planned sessions for today.</p>
               )}
             </section>
-
-            <section>
-              <div className="home-mini-header">
-                <h3>Experiments</h3>
-                <span>{runningExperiments.length + stalledExperiments.length}</span>
-              </div>
-              {attentionExperiments.length > 0 ? (
-                <ul className="entity-list">
-                  {attentionExperiments.map((experiment) => (
-                    <li
-                      className={
-                        experiment.status === "stalled"
-                          ? "entity-row entity-row--alert"
-                          : "entity-row"
-                      }
-                      key={experiment.id}
-                    >
-                      <button
-                        className="entity-row__body-button"
-                        onClick={() => onOpenExperiment(experiment.id)}
-                        type="button"
-                      >
-                        <strong>{experiment.title}</strong>
-                        <span>{taskLookup.get(experiment.task_id)?.title ?? "Unknown task"}</span>
-                      </button>
-                      <span className={`pill pill--${experiment.status}`}>
-                        {experiment.status}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="empty-state">No running or stalled experiments.</p>
-              )}
-            </section>
-
-            {dashboard.activeTask ? (
-              <section>
-                <div className="home-mini-header">
-                  <h3>Ready tasks</h3>
-                  <span>{readyTasks.length}</span>
-                </div>
-                {readyTasks.length > 0 ? (
-                  <ul className="entity-list home-ready-list">
-                    {readyTasks.map((task) => (
-                      <li className="entity-row" key={task.id}>
-                        <button
-                          className="entity-row__body-button"
-                          onClick={() => onOpenTask(task.id)}
-                          type="button"
-                        >
-                          <strong>{task.title}</strong>
-                          <span>
-                            {formatTaskStatus(task.status)} - {task.priority}
-                          </span>
-                        </button>
-                        <button
-                          className="button button--ghost button--small"
-                          disabled={busyTaskId === task.id}
-                          onClick={() => void handleSwitchTask(task.id)}
-                          type="button"
-                        >
-                          {busyTaskId === task.id ? "Switching..." : "Switch"}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="empty-state">No other ready tasks.</p>
-                )}
-              </section>
-            ) : null}
-
-            <ul className="home-metric-row" aria-label="Task counts">
-              <li>
-                <span>Backlog</span>
-                <strong>{countByStatus(dashboard.tasks, "inbox")}</strong>
-              </li>
-              <li>
-                <span>Waiting</span>
-                <strong>{countByStatus(dashboard.tasks, "waiting")}</strong>
-              </li>
-              <li>
-                <span>Planned</span>
-                <strong>{dashboard.scheduledBlocks.length}</strong>
-              </li>
-            </ul>
           </div>
         </article>
       </section>
@@ -743,7 +1105,7 @@ export function HomePage({ onOpenExperiment, onOpenTag, onOpenTask }: HomePagePr
                 ? "Edit note"
                 : quickAction.kind === "note-create"
                   ? "New note"
-                : "New experiment"
+                  : "New experiment"
           }
           wide={quickAction.kind === "task"}
         >
@@ -776,12 +1138,12 @@ export function HomePage({ onOpenExperiment, onOpenTag, onOpenTask }: HomePagePr
               initialTaskId={
                 quickAction.kind === "note-edit"
                   ? primaryTaskIdForNoteBlock(quickAction.block)
-                  : dashboard.activeTask?.id ?? ""
+                  : focusTaskId ?? ""
               }
               onCancel={() => setQuickAction(null)}
               onError={setError}
               onSubmit={handleSaveJournalBlock}
-              placeholder="Capture the next note with markdown and #tags."
+              placeholder="Capture the next note with markdown, #tags, and references."
               submitLabel={quickAction.kind === "note-edit" ? "Save note" : "Add note"}
               submittingLabel={quickAction.kind === "note-edit" ? "Saving..." : "Adding..."}
               tasks={openTasks}
@@ -790,6 +1152,7 @@ export function HomePage({ onOpenExperiment, onOpenTag, onOpenTask }: HomePagePr
 
           {quickAction.kind === "experiment" ? (
             <ExperimentCreateForm
+              fixedTaskId={focusTaskId ?? undefined}
               onCancel={() => setQuickAction(null)}
               onError={setError}
               onRegister={async (input) => {

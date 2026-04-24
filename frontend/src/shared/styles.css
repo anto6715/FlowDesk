@@ -171,7 +171,7 @@ body {
 }
 
 .page-shell--home {
-  width: min(1040px, calc(100% - 3rem));
+  width: min(1240px, calc(100% - 3rem));
 }
 
 .hero {
@@ -262,6 +262,14 @@ body {
   gap: 0.45rem;
 }
 
+.home-hero-copy {
+  max-width: 42rem;
+  margin: 0.5rem 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
 .button--round {
   border-radius: 999px;
 }
@@ -271,29 +279,108 @@ body {
   font-size: 0.88rem;
 }
 
-.home-dashboard-grid {
+.home-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.home-overview-strip {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.home-overview-strip article {
+  min-width: 0;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1.15rem;
+  background: rgba(255, 250, 241, 0.7);
+}
+
+.home-overview-strip span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.home-overview-strip strong {
+  display: block;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+  line-height: 1;
+}
+
+.home-workbench-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(18rem, 0.82fr);
   gap: 1.25rem;
   align-items: start;
 }
 
-.home-active-card {
+.home-journal-workbench,
+.home-focus-panel {
   grid-row: span 2;
 }
 
-.home-journal-panel,
-.home-next-panel {
+.home-journal-workbench,
+.home-focus-panel,
+.home-queue-panel,
+.home-operations-panel {
   margin-top: 0;
 }
 
-.home-context-stack {
+.home-focus-panel {
   display: grid;
-  gap: 1.1rem;
+  align-content: start;
 }
 
-.home-context-stack section {
+.home-focus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1rem;
+}
+
+.home-focus-status {
+  margin-top: 1rem;
+}
+
+.home-focus-actions {
+  margin-top: 1rem;
+}
+
+.home-focus-actions--utility {
+  margin-top: 1.1rem;
+}
+
+.home-focus-stack,
+.home-queue-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.home-focus-stack {
+  margin-top: 1.35rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid rgba(30, 27, 24, 0.08);
+}
+
+.home-focus-section,
+.home-queue-stack section {
   min-width: 0;
+}
+
+.home-queue-row--focused {
+  border-color: rgba(15, 109, 97, 0.18);
+  background: rgba(212, 237, 231, 0.42);
 }
 
 .home-mini-header {
@@ -322,38 +409,26 @@ body {
   font-weight: 800;
 }
 
-.home-ready-list {
-  margin-top: 1rem;
+.home-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
-.home-metric-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.journal-list--compact {
   gap: 0.65rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
-.home-metric-row li {
-  padding: 0.75rem;
-  border: 1px solid rgba(30, 27, 24, 0.07);
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.38);
+.journal-list--compact li {
+  padding: 0.85rem 0.85rem 0.85rem 2.45rem;
 }
 
-.home-metric-row span {
-  display: block;
-  margin-bottom: 0.25rem;
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.home-metric-row strong {
-  font-size: 1.25rem;
+.journal-list--compact li::before {
+  top: 0.85rem;
+  left: 0.85rem;
 }
 
 .home-waiting-details {
@@ -1859,6 +1934,11 @@ textarea {
     width: 100%;
   }
 
+  .home-panel-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
   .task-hero-actions {
     justify-content: flex-start;
     width: 100%;
@@ -1876,6 +1956,15 @@ textarea {
 
   .sync-chip--quiet {
     width: 100%;
+  }
+
+  .home-overview-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-focus-header {
+    flex-direction: column;
+    align-items: start;
   }
 
   .home-action-overlay {
@@ -1970,6 +2059,10 @@ textarea {
     justify-items: start;
   }
 
+  .home-row-actions {
+    justify-content: flex-start;
+  }
+
   .entity-row .pill {
     align-self: flex-start;
   }
@@ -1980,14 +2073,16 @@ textarea {
   .summary-grid--tasks,
   .task-count-strip,
   .task-lane-grid,
-  .home-dashboard-grid,
+  .home-overview-strip,
+  .home-workbench-grid,
   .detail-grid,
   .task-detail-workspace,
   .operations-grid--detail {
     grid-template-columns: 1fr;
   }
 
-  .home-active-card {
+  .home-journal-workbench,
+  .home-focus-panel {
     grid-row: auto;
   }
 
