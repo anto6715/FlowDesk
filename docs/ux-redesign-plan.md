@@ -27,9 +27,10 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - V2 Point 2 note block backend foundation completed in `154f024`.
 - V2 Point 3 bullet journal UI completed in `44605d3`.
 - V2 Point 4 tags, references, and backlinks completed in `a02b8e9`.
+- V2 Point 5 Home workbench redesign completed in `bb4a4bd`.
 - Current priority is Flow Desk v2 workbench redesign, not isolated page polish.
 - Do not start broad reporting/export work until the workbench and note-linking model are usable.
-- Next implementation point is V2 Point 5. Ask the user before starting it.
+- Next implementation point is V2 Point 6. Ask the user before starting it.
 
 ## Redesign goals
 
@@ -376,7 +377,7 @@ Implementation notes:
 
 ### V2 Point 5. Home Workbench Redesign
 
-Status: planned.
+Status: completed in `bb4a4bd`.
 
 Scope:
 
@@ -395,6 +396,12 @@ Acceptance:
 - Home supports opening task and experiment details directly.
 - Notes and task context are visible together without feeling crowded.
 - The default page feels operational and serious, not toy-like.
+
+Implementation notes:
+
+- Home now uses a three-part workbench layout: today journal, active-or-selected task focus, and operational queues/context.
+- Queue rows can promote a task into Home focus without leaving the page, while task and experiment detail remain directly reachable.
+- Home note capture and experiment registration now inherit the current Home task focus for more contextual daily use.
 
 ### V2 Point 6. Experiment Detail And Comments
 
