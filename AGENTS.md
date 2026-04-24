@@ -53,6 +53,7 @@
 - V2 Point 3 bullet journal UI committed in `44605d3`
 - V2 Point 4 tags, references, and backlinks committed in `a02b8e9`
 - V2 Point 5 Home workbench redesign committed in `bb4a4bd`
+- V2 Point 6 experiment detail and comments committed in `f5fa58c`
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
@@ -98,6 +99,8 @@
   - Home is now a true workbench: today journal, active or selected task focus, queue selection, running/stalled experiment context, and planned sessions on one screen
   - Home task queues can pin a task into focus without leaving Home, while still opening task detail directly when needed
   - Home quick note and experiment actions now inherit the current Home task focus for contextual capture
+  - experiment detail is now a stronger run workspace with code-friendly instruction/command panels, lifecycle metadata, execution-context paths, artifact/output sections, and a comment stream
+  - experiment comments remain appendable from detail, and experiment backlinks stay visible alongside the run context
   - `scripts/dev.sh` starts the local SQLite database path, Alembic migrations, backend, and frontend together
   - mobile task and experiment tables render as stacked card rows instead of horizontal scrollers
   - desktop/mobile visual smoke pass for Home, Tasks, Task Detail, Journal, Experiments, and Calendar with no page-level horizontal overflow
@@ -141,8 +144,7 @@ When resuming a future session:
 
 ## Near-term implementation order
 
-1. V2 Point 6: experiment detail and comments
-2. V2 Point 7: reporting integration
+1. V2 Point 7: reporting integration
 
 ## Commit guidance
 

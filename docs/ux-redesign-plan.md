@@ -28,9 +28,10 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - V2 Point 3 bullet journal UI completed in `44605d3`.
 - V2 Point 4 tags, references, and backlinks completed in `a02b8e9`.
 - V2 Point 5 Home workbench redesign completed in `bb4a4bd`.
+- V2 Point 6 experiment detail and comments completed in `f5fa58c`.
 - Current priority is Flow Desk v2 workbench redesign, not isolated page polish.
 - Do not start broad reporting/export work until the workbench and note-linking model are usable.
-- Next implementation point is V2 Point 6. Ask the user before starting it.
+- Next implementation point is V2 Point 7. Ask the user before starting it.
 
 ## Redesign goals
 
@@ -405,7 +406,7 @@ Implementation notes:
 
 ### V2 Point 6. Experiment Detail And Comments
 
-Status: planned.
+Status: completed in `f5fa58c`.
 
 Scope:
 
@@ -419,6 +420,12 @@ Acceptance:
 - Experiment detail is reachable from task detail and experiment registry.
 - Long commands/instructions do not break desktop or mobile layout.
 - Experiment notes/comments are visible and appendable.
+
+Implementation notes:
+
+- Experiment detail now behaves more like a run workspace than a thin detail page, with separate run-brief, lifecycle, execution-context, and artifact/output sections.
+- Instruction and launch command are rendered as dedicated code panels, while local paths and source metadata use compact monospace treatment for easier scanning.
+- Experiment comments are presented as a proper timestamped stream, and note backlinks remain visible in the same workspace.
 
 ### V2 Point 7. Reporting Integration
 
