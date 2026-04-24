@@ -47,13 +47,14 @@
 - UX redesign Point 6 visual and mobile polish committed in `d9336fe`
 - Post-redesign task workflow UI polish committed in `e7ae703`
 - Planned-session interaction UI committed in `ba3540a`
-- Active plan is now Flow Desk v2 workbench redesign: medium Logseq-style editable note blocks, tags, backlinks, and integrated task/experiment navigation
+- Active plan is now Flow Desk usability stabilization after the core v2 workbench foundation: iterate on UI/UX until daily use feels very usable, then do reporting last
 - V2 Point 1 workbench interaction architecture committed in `f8eb66d`
 - V2 Point 2 note block backend foundation committed in `154f024`
 - V2 Point 3 bullet journal UI committed in `44605d3`
 - V2 Point 4 tags, references, and backlinks committed in `a02b8e9`
 - V2 Point 5 Home workbench redesign committed in `bb4a4bd`
 - V2 Point 6 experiment detail and comments committed in `f5fa58c`
+- Reporting integration is intentionally deferred until the current UI is repeatedly dogfooded and judged very usable
 - Current backend now includes:
   - verified dependency lockfile via `uv`
   - Alembic migration baseline
@@ -138,13 +139,17 @@ When resuming a future session:
 2. Read `docs/design-checkpoint.md`
 3. Read `docs/ux-redesign-plan.md`
 4. Check `git status --short`
-5. Continue from the Flow Desk v2 workbench plan in `docs/ux-redesign-plan.md`
-6. Ask the user before starting each V2 point
-7. Do not resume broad reporting/export work until the v2 workbench and note-linking foundation are usable
+5. Continue from the active usability-stabilization plan in `docs/ux-redesign-plan.md`
+6. Ask the user before starting each new usability slice or deferred V2 point
+7. Do not resume broad reporting/export work until the current UI is very usable in daily practice
 
 ## Near-term implementation order
 
-1. V2 Point 7: reporting integration
+1. Usability Slice 1: note capture and linking friction pass
+2. Usability Slice 2: cross-view workflow and navigation polish
+3. Usability Slice 3: planned-session and calendar usability pass
+4. Usability Slice 4: daily-driver paper cuts from real usage
+5. Reporting integration only after usability stabilization
 
 ## Commit guidance
 

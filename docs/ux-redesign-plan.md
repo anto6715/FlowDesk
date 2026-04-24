@@ -11,6 +11,7 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - Pause backend feature work unless the current UI point requires a small contract change.
 - Keep existing backend contracts intact where possible.
 - Verify and commit each point before asking to continue.
+- Reporting remains last. Do not start it until the current UI is judged very usable in real daily use.
 
 ## Current status
 
@@ -29,9 +30,10 @@ This plan tracks the current UI redesign effort. It is the authoritative resume 
 - V2 Point 4 tags, references, and backlinks completed in `a02b8e9`.
 - V2 Point 5 Home workbench redesign completed in `bb4a4bd`.
 - V2 Point 6 experiment detail and comments completed in `f5fa58c`.
-- Current priority is Flow Desk v2 workbench redesign, not isolated page polish.
-- Do not start broad reporting/export work until the workbench and note-linking model are usable.
-- Next implementation point is V2 Point 7. Ask the user before starting it.
+- Core v2 workbench foundation is now usable enough to dogfood, but not yet polished enough to justify reporting work.
+- Current priority is iterative usability stabilization, not reporting.
+- Do not start broad reporting/export work until the UI feels very usable in repeated daily workflows.
+- Next implementation point is Usability Slice 1. Ask the user before starting it.
 
 ## Redesign goals
 
@@ -172,7 +174,7 @@ Acceptance:
 
 ### Slice 3. Experiment detail and comments
 
-Status: next, ask before starting.
+Status: completed in `f5fa58c`.
 
 Scope:
 
@@ -429,7 +431,7 @@ Implementation notes:
 
 ### V2 Point 7. Reporting Integration
 
-Status: planned after workbench/note foundations.
+Status: deferred until after usability stabilization.
 
 Scope:
 
@@ -443,10 +445,95 @@ Acceptance:
 - A report can include related notes/tags for context.
 - Tags can help summarize themes across tasks and experiments.
 
+## Post-V2 Usability Stabilization Loop
+
+### Why this phase exists
+
+The current product now covers the intended core entities and flows, but feature completeness is not enough.
+
+If the UI feels awkward, slow, noisy, or brittle, the tool will be dismissed before reporting ever matters.
+That means the next phase must optimize for repeated real use:
+
+- reduce friction in the most common daily actions
+- improve clarity before adding more analytical power
+- iterate from dogfooding and observed paper cuts
+- keep reporting explicitly last
+
+Working preference:
+
+- favor short, integrated UI slices over broad redesign waves
+- after each slice, verify, commit, and reassess the next friction point
+- use real workflow discomfort as the main prioritization signal
+
+### Usability Slice 1. Note Capture And Linking Friction Pass
+
+Status: planned.
+
+Scope:
+
+- Reduce friction in daily note capture from Home and Journal.
+- Improve task/experiment linking ergonomics further.
+- Tighten editing flow for existing bullets and comments.
+- Preserve stable-id linking and avoid any assumption that task titles are unique.
+
+Acceptance:
+
+- Adding or fixing a note feels fast enough to do continuously during work.
+- Linking a task or experiment from notes feels lighter than the current fallback controls.
+- The most common note actions do not force unnecessary navigation.
+
+### Usability Slice 2. Cross-View Workflow And Navigation Polish
+
+Status: planned.
+
+Scope:
+
+- Remove dead ends between Home, Tasks, Task Detail, Experiment Detail, Journal, and Calendar.
+- Add or refine context-preserving actions where the next step is obvious.
+- Make entity-to-entity navigation feel continuous rather than page-hopping.
+
+Acceptance:
+
+- Common flows can be completed without hunting through left navigation.
+- The next likely action is visible from the current workspace.
+- Context switches feel intentional rather than jarring.
+
+### Usability Slice 3. Planned-Session And Calendar Usability Pass
+
+Status: planned.
+
+Scope:
+
+- Refine planned-session creation, review, and adjustment flows.
+- Improve Calendar readability and action density on desktop and mobile.
+- Make scheduled work easier to inspect from both Calendar and Home.
+
+Acceptance:
+
+- Planned sessions are easy to understand and manipulate without confusion.
+- Calendar remains readable under real task load.
+- Session management feels operational rather than form-heavy.
+
+### Usability Slice 4. Daily-Driver Paper Cuts
+
+Status: planned.
+
+Scope:
+
+- Run repeated real-use passes and fix the highest-friction UI issues.
+- Tighten labels, empty states, density, long-text handling, and mobile breakpoints.
+- Prefer high-signal polish with immediate workflow payoff.
+
+Acceptance:
+
+- The main daily flows feel stable and low-friction.
+- Obvious “this should be easier” issues are reduced materially.
+- The tool feels trustworthy enough to keep open all day.
+
 ### V2 Coordination Rule
 
 - Proceed point by point.
-- Ask the user before starting each V2 point.
+- Ask the user before starting each new usability slice or deferred V2 point.
 - Keep checkpoint commits after each point.
 - Update this plan and `AGENTS.md` whenever the active point or order changes.
 - Prefer a working integrated slice over broad partial rewrites.
